@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    image: node:22-alpine
+    volumes:
+      - ./:/app:cached
+      - /app/node_modules
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+      - NITRO_HOST=0.0.0.0
+    command: sh -c "corepack enable && pnpm install --silent && pnpm dev -- --hostname 0.0.0.0"
+    depends_on: []
+
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  db-data:
