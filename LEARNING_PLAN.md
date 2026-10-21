@@ -20,6 +20,11 @@ Day 1 — 環境與 Scaffold
 
 Day 2 — Nuxt 核心概念
 - 任務：熟悉 routes、layouts、components、SSR 與 Nitro 執行模型（Nuxt 4）。
+  - SSR：確認 nuxt.config.ts 設 ssr: true，建立 pages/index.vue，用 useAsyncData 或 server-side composables 抓資料並在 server side 渲染
+  - Nitro API：新增 server/api/posts.get.ts（export default eventHandler(() => …)），在 nuxt.config.ts 或 nitro.config.ts 試 different presets（node-server / vercel / edge）
+  - 建置與預覽：npx nuxi build && npx nuxi preview；或部署到 Vercel/Netlify 做比較
+  - 驗證：curl -s http://localhost:3000 | grep 目標內容（確認 HTML 已被 server-rendered）；在瀏覽器關 JS 檢查首屏；用 Lighthouse 測 FCP/TBT；檢查 hydration console error
+
 - 可驗收：建立主功能頁路由（例如 / 或 /app）並在 dev 中可切換多個範例頁面。
 
 Day 3 — Plugins & runtimeConfig
