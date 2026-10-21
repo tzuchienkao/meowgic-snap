@@ -1,6 +1,8 @@
 services:
   app:
     image: node:22-bookworm-slim
+    env_file:
+      - .env
     volumes:
       - ./:/app:delegated
       - /app/node_modules
