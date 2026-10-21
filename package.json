@@ -4,9 +4,11 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
+    "build:pages": "NITRO_PRESET=cloudflare-pages nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "preview:pages": "npx -y wrangler@4 pages dev dist --ip 0.0.0.0 --port 8788",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
