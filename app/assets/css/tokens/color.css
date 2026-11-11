@@ -1,0 +1,35 @@
+/* ── Light mode（橘白貓，預設）── */
+:root {
+  --color-bg:        #FFF4EA;   /* 柔底 soft */
+  --color-surface:   #FFFFFF;   /* 卡片 surface */
+  --color-accent:    #F08A4B;   /* 重點色 橘貓 */
+  --color-accent-dark: #E0733A; /* 重點文字深色（僅大字 18px+）*/
+  --color-peach:     #FFD9C2;   /* 肉球 / 有數量 */
+  --color-ink:       #3A2A22;   /* 主文字 / 強按鈕 / 總額卡 */
+  --color-muted:     #735D50;   /* 次要文字 */
+  --color-line:      #F3DCC8;   /* 框線 */
+  --color-bill-chip: #FFE1CF;   /* 紙鈔數量 badge */
+  --color-coin-chip: #F6EDE6;   /* 硬幣數量 badge */
+  --color-warning:   #FFE9E2;   /* 警告背景 */
+  --color-warning-text: #9A3412;
+  --color-danger:    #C2410C;   /* 危險按鈕 */
+  --color-shadow:    #3A2A22;   /* 陰影 */
+}
+
+/* ── Dark mode（黑貓，登入後可切換）── */
+[data-theme="dark"] {
+  --color-bg:        #1C1B1F;
+  --color-surface:   #2A2830;
+  --color-accent:    #F2C14E;   /* 貓眼 */
+  --color-accent-dark: #F2C14E;
+  --color-peach:     #3E3A44;   /* 兼作框線 */
+  --color-ink:       #F3EEE8;
+  --color-muted:     #ABA3A0;
+  --color-line:      #3E3A44;
+  --color-bill-chip: #4A4234;
+  --color-coin-chip: #36333C;
+  --color-warning:   #3A2626;   /* 警告背景 */
+  --color-warning-text: #F5B8A0;
+  --color-danger:    #C2410C;
+  --color-shadow:    #3A2A22;
+}

@@ -1,0 +1,15 @@
+:root {
+  --border-width-default: 1px;
+  --border-radius-button:     9999px;   /* 全圓 */
+  --border-radius-input:      9999px;   /* 全圓 */
+  --border-radius-badge:      9999px;   /* 全圓 */
+  --border-radius-coin:       50%;      /* 硬幣格圓形 */
+  --border-radius-bill:       1.25rem;  /* 20px 紙鈔格 */
+  --border-radius-detail-row: 1rem;     /* 16px 明細列 / 提示 */
+  --border-radius-card-sub:   1.25rem;  /* 20–24px 次卡片 */
+  --border-radius-card-main:  1.75rem;  /* 28px 主卡片 / 貓耳卡片 */
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}

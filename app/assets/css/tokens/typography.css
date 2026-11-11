@@ -1,0 +1,20 @@
+/*
+  字體說明：目前使用 Chiron GoRound TC（已設定於 nuxt.config.ts），不更換。
+  設計稿字體規格供對照：
+  - 大數字/標題/按鈕：Huninn 36–44 / 28 / 18–20 / 15–16px
+  - 內文：Noto Sans TC 14–15px / line-height 1.7
+  - 輔助說明：Noto Sans TC 12–13px
+  - 輸入框資料：IBM Plex Mono 15px
+*/
+:root {
+  --font-size-body:       0.875rem;    /* 內文 14px */
+  --font-size-sub:        0.8125rem;   /* 輔助說明 13px */
+  --font-size-btn:        0.9375rem;   /* 按鈕 15px */
+  --font-size-card-title: 1.125rem;    /* 卡片標題 18px */
+  --font-size-page-title: 1.75rem;     /* 頁面標題 28px */
+  --font-size-big-num:    2.25rem;     /* 大數字 36px */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-bold:     700;
+  --line-height-body:     1.7;
+}
