@@ -1,5 +1,5 @@
 <template>
-  <div class="layout-wrapper">
+  <div class="layout-desktop-wrapper">
     <component :is="layout">
       <slot />
     </component>
@@ -13,7 +13,7 @@ const layout = computed(() => `layout-desktop-${name}`)
 </script>
 
 <style scoped>
-.layout-wrapper {
+.layout-desktop-wrapper {
   max-width: 1200px;
   margin: 0 auto;
 }
