@@ -30,13 +30,22 @@ const $supabase = nuxtApp.$supabase
 const handleLogin = async () => {
   loading.value = true
 
-  const { error } = await $supabase.auth.signInWithOtp({
-    email: email.value,
-    options: {
-      emailRedirectTo: `${window.location.origin}/settings`,
-    },
-  })
+  try {
+    const { error } = await $supabase.auth.signInWithOtp({
+      email: email.value,
+      options: {
+        emailRedirectTo: `${window.location.origin}/settings`,
+      },
+    })
 
-  loading.value = false
+    loading.value = false
+    if (error) {
+      throw error
+    }
+  } catch (error) {
+    console.error(error)
+  } finally {
+    loading.value = false
+  }
 }
 </script>

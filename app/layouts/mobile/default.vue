@@ -55,58 +55,18 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
-import { useTheme } from "~/composables/useTheme.ts";
-import { Themes } from '~/types/theme';
-import type { IAppTab } from '~/components/app/Tab/ITab';
-
-const { name } = defineProps(['name'])
-
-const { theme, toggleTheme } = useTheme();
-
-const initTabs = [
-  { name: 'index', label: '首頁', isActive: false },
-  { name: 'dashboard', label: '儀表板', isActive: false },
-  { name: 'logs', label: '紀錄', isActive: false },
-  { name: 'settings', label: '設定', isActive: false }
-];
-
-const tabs = reactive(initTabs);
-
-const currentTab = ref('index');
-
-const onTabClick = (tab: IAppTab) => {
-  tabs.forEach((t: IAppTab) => {
-    t.isActive = t.name === tab.name;
-  });
-  currentTab.value = tab.name;
-};
-
-const currentTheme = computed(() => {
-  return theme.value === Themes.Dark ? '☀' : '☾';
-});
-
-const onThemeToggle = () => {
-  toggleTheme();
-};
+const {
+  tabs,
+  onTabClick,
+  currentTheme,
+  onThemeToggle,
+  isShowAccountPanel,
+  toggleAccountPanel
+} = useLayoutMenuState();
 
 const onMenuClick = () => {
   toggleAccountPanel();
 };
-
-const isShowAccountPanel = ref(false);
-
-const toggleAccountPanel = () => {
-  isShowAccountPanel.value = !isShowAccountPanel.value;
-};
-
-const initPage = () => {
-  tabs.forEach((tab: IAppTab) => {
-    tab.isActive = tab.name === currentTab.value;
-  });
-};
-
-initPage();
 </script>
 
 <style scoped>

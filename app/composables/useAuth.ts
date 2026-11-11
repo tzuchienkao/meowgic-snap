@@ -1,8 +1,14 @@
+interface IUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
 export const useAuth = () => {
   const user = useState('user', () => null);
   const isAuthenticated = computed(() => !!user.value);
 
-  const setUser = (value: any) => {
+  const setUser = (value: IUser | null) => {
     user.value = value;
   };
 
