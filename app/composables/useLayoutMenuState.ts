@@ -2,8 +2,10 @@ import type { IAppTab } from '~/components/app/Tab/ITab';
 import { NAVIGATION_TABS } from '~/constants/navigation';
 import { useTheme } from '~/composables/useTheme';
 import { Themes } from '~/types/theme';
+import { useModel } from '~/composables/useModel';
 
 export const useLayoutMenuState = () => {
+  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
   const tabs = reactive<IAppTab[]>(
@@ -21,6 +23,7 @@ export const useLayoutMenuState = () => {
       t.isActive = t.name === tab.name;
     });
     currentTab.value = tab.name;
+    router.push({ name: tab.name });
   };
 
   const currentTheme = computed(() => {
@@ -36,12 +39,16 @@ export const useLayoutMenuState = () => {
   };
 
   const initPage = () => {
+    const routerName = router.currentRoute.value.name;
     tabs.forEach((tab: IAppTab) => {
-      tab.isActive = tab.name === currentTab.value;
+      tab.isActive = tab.name === routerName;
     });
+    currentTab.value = routerName as string;
   };
 
   initPage();
+
+  const { isShowModel, openModel, closeModel } = useModel();
 
   return {
     tabs,
@@ -51,5 +58,8 @@ export const useLayoutMenuState = () => {
     onThemeToggle,
     isShowAccountPanel,
     toggleAccountPanel,
+    isShowModel,
+    openModel,
+    closeModel
   };
 };

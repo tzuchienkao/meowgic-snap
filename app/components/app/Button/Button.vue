@@ -1,6 +1,6 @@
 <template>
   <button
-    class="app-button px-5 py-3 rounded-full bg-surface dark:text-accent cursor-pointer transition-[background-color, color] duration-300"
+    class="app-button transition-[background-color, color]"
     :disabled="disabled"
     @click="onButtonClick"
   >
@@ -39,3 +39,11 @@ const onButtonClick = () => {
   }
 };
 </script>
+
+<style scoped>
+@reference "~/assets/css/main.css";
+
+.app-button {
+  @apply px-5 py-3 rounded-full bg-surface dark:text-accent cursor-pointer duration-300 flex items-center justify-center;
+}
+</style>

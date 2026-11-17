@@ -11,21 +11,32 @@
           >
           </app-button>
           <div class="relative">
-            <app-button class="dark:text-ink" label="喵奴才" @click="toggleAccountPanel">
+            <app-button
+              class="dark:text-ink"
+              :label="userName"
+              @click="toggleAccountPanel"
+            >
               <template #appendIcon>
-                <span class="text-xs text-muted">▼</span>
+                <span class="text-xs text-muted ml-1">▼</span>
               </template>
             </app-button>
             <div
               v-if="isShowAccountPanel"
-              class="absolute top-full right-0 bg-surface rounded-3xl p-2 mt-3 min-w-[200px] text-ink shadow-shadow/6 shadow-xl">
+              class="absolute z-1 top-full right-0 bg-surface rounded-3xl p-2 mt-3 min-w-[200px] text-ink shadow-shadow/6 shadow-xl">
               <ul>
                 <li class="p-3">
-                  <div>喵奴才</div>
-                  <div class="text-xs text-muted">meow@mail.com</div>
+                  <div>{{ userName }}</div>
+                  <div class="text-xs text-muted">{{ user.email }}</div>
                 </li>
-                <li class="p-3 hover:bg-accent/12 rounded-md">修改名稱與設定</li>
-                <li class="text-warning-text p-3 hover:bg-accent/12 rounded-md">登出</li>
+                <li class="p-3 hover:bg-accent/12 rounded-md">
+                  修改名稱與設定
+                </li>
+                <li
+                  class="text-warning-text p-3 hover:bg-accent/12 rounded-md"
+                  @click="logout"
+                >
+                  登出
+                </li>
               </ul>
             </div>
           </div>
@@ -39,14 +50,27 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '~/composables/useAuth'
+
+const { user, logout } = useAuth()
+
 const {
   tabs,
   onTabClick,
   currentTheme,
   onThemeToggle,
   isShowAccountPanel,
-  toggleAccountPanel
+  toggleAccountPanel,
 } = useLayoutMenuState();
+
+const userName = computed(() => {
+  const hasDisplayName = user.value && user.value.display_name;
+  if (!user.value || !hasDisplayName) {
+    return '喵奴才'
+  }
+  return user.value.display_name
+})
+
 </script>
 
 <style scoped>

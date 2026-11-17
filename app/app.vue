@@ -1,11 +1,8 @@
 <template>
-  <ClientOnly v-if="user">
-    <NuxtLayout :name="layout">
+  <NuxtLayout :name="layout">
+    <ClientOnly>
       <NuxtPage />
-    </NuxtLayout>
-  </ClientOnly>
-  <NuxtLayout v-else :name="layout">
-    <NuxtPage />
+    </ClientOnly>
   </NuxtLayout>
 </template>
 
@@ -18,16 +15,14 @@ const { agentMode, setAgentMode, initAgentMode, cleanupAgentMode } = useAgent();
 const { initTheme } = useTheme();
 const { user, initAuth } = useAuth();
 
-// Initialize theme immediately to prevent flash
-initTheme();
-await initAuth();
+const isAuthReady = ref(false)
 
-if (import.meta.client) {
-  setAgentMode();
-}
-
-onMounted(() => {
+onMounted(async () => {
+  initTheme();
   initAgentMode();
+  await initAuth();
+  setAgentMode();
+  isAuthReady.value = true;
 });
 
 onBeforeUnmount(() => {
@@ -35,7 +30,7 @@ onBeforeUnmount(() => {
 });
 
 const layout = computed(() => {
-  if (user.value) {
+  if (isAuthReady.value && user.value) {
     return agentMode.value === 'mobile' ? 'mobile-default' : 'desktop-default'
   } else {
     return 'desktop-landing';
