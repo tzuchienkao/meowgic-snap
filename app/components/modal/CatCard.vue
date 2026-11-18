@@ -1,5 +1,5 @@
 <template>
-  <div class="model-cat-card">
+  <div class="modal-cat-card">
     <div>
       <app-cat-card class="relative z-1">
         <div class="flex flex-col gap-5">
@@ -10,26 +10,26 @@
             >
             </app-button>
           </div>
-          <slot name="model-header">
-            <div class="model-header flex flex-col gap-2">
-              <div class="model-header__title">{{ title }}</div>
-              <div class="model-header__description">{{ description }}</div>
+          <slot name="modal-header">
+            <div class="modal-header flex flex-col gap-2">
+              <div class="modal-header__title">{{ title }}</div>
+              <div class="modal-header__description">{{ description }}</div>
             </div>
           </slot>
-          <slot name="model-body">
-            <div class="model-body">
-              <div>Model Body Content</div>
+          <slot name="modal-body">
+            <div class="modal-body">
+              <div>Modal Body Content</div>
             </div>
           </slot>
-          <slot name="model-footer">
-              <div class="model-footer">
-                <div>Model Footer Content</div>
+          <slot name="modal-footer">
+              <div class="modal-footer">
+                <div>Modal Footer Content</div>
               </div>
             </slot>
         </div>
       </app-cat-card>
     </div>
-    <div class="model-mask" @click="onMaskClick"></div>
+    <div class="modal-mask" @click="onMaskClick"></div>
   </div>
 </template>
 
@@ -65,15 +65,15 @@ const onMaskClick = () => {
 <style scoped>
 @reference "~/assets/css/main.css";
 
-.model-cat-card {
+.modal-cat-card {
   @apply fixed top-0 left-0 w-full h-full z-2 flex items-center justify-center;
 }
 
-.model-mask {
+.modal-mask {
   @apply absolute top-0 left-0 w-full h-full bg-black/50;
 }
 
-::v-deep(.cat-card .card-body) {
+::v-deep(.cat-card .cat-body) {
   @apply flex gap-5;
 }
 

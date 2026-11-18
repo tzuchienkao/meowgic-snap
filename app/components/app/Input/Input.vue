@@ -25,7 +25,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import type { IInput } from './IInput';
+import type { IAppInput } from './IAppInput';
 
 const {
   type,
@@ -74,7 +74,7 @@ const {
     type: Boolean,
     default: false
   }
-}) as IInput;
+}) as IAppInput;
 
 const emit = defineEmits(['update:model-value', 'blur'])
 

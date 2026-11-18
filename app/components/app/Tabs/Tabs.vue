@@ -11,16 +11,16 @@
 
 <script setup lang="ts">
 import type { IAppTab } from '~/components/app/Tab/ITab';
-import { Event } from '~/components/app/Tab/Event';
+import { AppTabEvent } from '~/components/app/Tab/AppTabEvent';
 
 const { tabs } = defineProps({
   tabs: Array
 }) as { tabs: IAppTab[] };
 
-const emit = defineEmits([Event.TabClick]);
+const emit = defineEmits([AppTabEvent.TabClick]);
 
 const onTabClick = (tab: IAppTab) => {
-  emit(Event.TabClick, tab);
+  emit(AppTabEvent.TabClick, tab);
 };
 </script>
 

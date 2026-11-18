@@ -1,3 +1,3 @@
-export enum Event {
+export enum AppTabEvent {
   TabClick = "tab-click",
 }

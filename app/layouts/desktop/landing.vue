@@ -4,7 +4,7 @@
       <template v-slot:menu>
         <app-button
           label="登入"
-          @click="openModel"
+          @click="openModal"
         >
         </app-button>
       </template>
@@ -12,14 +12,14 @@
     <main>
       <slot />
     </main>
-    <model-cat-card
-      v-if="isShowModel"
+    <modal-cat-card
+      v-if="isShowModal"
       :title="model.title"
       :description="model.description"
       :is-static="model.isStatic"
-      @close-click="closeModel"
+      @close-click="closeModal"
     >
-      <template #model-body>
+      <template #modal-body>
         <div class="text-muted text-sm flex flex-col gap-1">
           <label>{{ email.label }}</label>
           <app-input
@@ -30,7 +30,7 @@
           />
         </div>
       </template>
-      <template #model-footer>
+      <template #modal-footer>
         <app-button
           class="app-button__submit"
           :label="loading ? '寄送中...' : '寄送魔法連結'"
@@ -39,15 +39,15 @@
         >
         </app-button>
       </template>
-    </model-cat-card>
+    </modal-cat-card>
   </desktop-wrapper>
 </template>
 
 <script setup lang="ts">
 const {
-  isShowModel,
-  openModel,
-  closeModel
+  isShowModal,
+  openModal,
+  closeModal
 } = useLayoutMenuState();
 
 const nuxtApp = useNuxtApp();
@@ -78,7 +78,7 @@ const handleLogin = async () => {
     const { error } = await $supabase.auth.signInWithOtp({
       email: email.value,
       options: {
-        emailRedirectTo: `${window.location.origin}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
 
@@ -97,7 +97,7 @@ const handleLogin = async () => {
 const onMagicLinkClick = async () => {
   try {
     await handleLogin();
-    closeModel();
+    closeModal();
   } catch (error) {
     console.error(error);
   }
@@ -112,17 +112,17 @@ const onMagicLinkClick = async () => {
   background-color: var(--button-bg-color);
 }
 
-:deep(.model-cat-card .cat-card) {
+:deep(.modal-cat-card .cat-card) {
   width: min(420px, -32px + 100vw);
 }
 
-:deep(.model-cat-card .model-header) {
+:deep(.modal-cat-card .modal-header) {
   @apply text-center;
 }
-:deep(.model-cat-card .model-header .model-header__title) {
+:deep(.modal-cat-card .modal-header .modal-header__title) {
   @apply text-2xl text-ink;
 }
-:deep(.model-cat-card .model-header .model-header__description) {
+:deep(.modal-cat-card .modal-header .modal-header__description) {
   @apply text-base text-muted;
 }
 

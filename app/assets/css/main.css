@@ -73,8 +73,8 @@ html {
   .text-warning-text { color: var(--color-warning-text); }
   .bg-warning { background-color: var(--color-warning); }
   
-  @dark {
-    .dark\:bg-accent { background-color: var(--color-accent); }
+  :where([data-theme="dark"], [data-theme="dark"] *) .dark\:bg-accent {
+    background-color: var(--color-accent);
   }
 }
 

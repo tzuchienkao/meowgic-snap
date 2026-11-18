@@ -1,4 +1,4 @@
-export interface IInput {
+export interface IAppInput {
   modelValue: string | number;
   type: string;
   placeholder: string;

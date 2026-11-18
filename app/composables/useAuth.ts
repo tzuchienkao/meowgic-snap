@@ -87,6 +87,8 @@ export const useAuth = () => {
           name: session.user.user_metadata?.name || session.user.email || '使用者',
           display_name: session.user.user_metadata?.display_name || undefined,
         });
+      } else {
+        setUser(null);
       }
     } catch (err) {
       console.error('Session verification error:', err);
@@ -136,19 +138,6 @@ export const useAuth = () => {
       // 優先檢查 Supabase session
       if (supabase) {
         await verifySession();
-      }
-
-      // 備用：檢查本地儲存
-      if (!user.value) {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-          try {
-            user.value = JSON.parse(savedUser);
-          } catch (err) {
-            localStorage.removeItem('user');
-            console.error('Failed to parse saved user:', err);
-          }
-        }
       }
     }
   };

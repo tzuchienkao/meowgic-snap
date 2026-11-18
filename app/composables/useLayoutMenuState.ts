@@ -2,7 +2,7 @@ import type { IAppTab } from '~/components/app/Tab/ITab';
 import { NAVIGATION_TABS } from '~/constants/navigation';
 import { useTheme } from '~/composables/useTheme';
 import { Themes } from '~/types/theme';
-import { useModel } from '~/composables/useModel';
+import { useModal } from '~/composables/useModal';
 
 export const useLayoutMenuState = () => {
   const router = useRouter();
@@ -48,7 +48,7 @@ export const useLayoutMenuState = () => {
 
   initPage();
 
-  const { isShowModel, openModel, closeModel } = useModel();
+  const { isShowModal, openModal, closeModal } = useModal();
 
   return {
     tabs,
@@ -58,8 +58,8 @@ export const useLayoutMenuState = () => {
     onThemeToggle,
     isShowAccountPanel,
     toggleAccountPanel,
-    isShowModel,
-    openModel,
-    closeModel
+    isShowModal,
+    openModal,
+    closeModal
   };
 };

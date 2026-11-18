@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import type { IAppTab } from '~/components/app/Tab/ITab';
-import { Event } from '~/components/app/Tab/Event';
+import { AppTabEvent } from '~/components/app/Tab/AppTabEvent';
 
 const { label, isActive, name } = defineProps({
   label: {
@@ -27,10 +27,10 @@ const { label, isActive, name } = defineProps({
   }
 }) as IAppTab;
 
-const emit = defineEmits([Event.TabClick]);
+const emit = defineEmits([AppTabEvent.TabClick]);
 
 const onTabClick = () => {
-  emit(Event.TabClick, { name, label, isActive })
+  emit(AppTabEvent.TabClick, { name, label, isActive })
 }
 </script>
 
