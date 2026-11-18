@@ -5,7 +5,7 @@
     @click="onButtonClick"
   >
     {{ label }}
-    <slot name="appendIcon"></slot>
+    <slot name="append"></slot>
   </button>
 </template>
 

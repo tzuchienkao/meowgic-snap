@@ -16,7 +16,7 @@
               :label="userName"
               @click="toggleAccountPanel"
             >
-              <template #appendIcon>
+              <template #append>
                 <span class="text-xs text-muted ml-1">▼</span>
               </template>
             </app-button>
