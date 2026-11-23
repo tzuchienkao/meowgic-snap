@@ -1,0 +1,8 @@
+/* Source: Claude Design system tokens/base.css (keep in sync).
+   Fonts: every family token resolves to Chiron GoRound TC in this project (see typography.css). */
+body{background:var(--ms-bg);color:var(--ms-ink);font-family:var(--ms-font-sans);-webkit-font-smoothing:antialiased;}
+a{color:var(--ms-link);}
+a:hover{color:var(--ms-link-hover);}
+textarea::placeholder,input::placeholder{color:var(--ms-placeholder);}
+:focus-visible{outline:3px solid var(--ms-focus);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}

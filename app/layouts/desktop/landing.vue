@@ -108,7 +108,7 @@ const onMagicLinkClick = async () => {
 @reference "~/assets/css/main.css";
 
 .app-button:hover {
-  --button-bg-color: var(--color-peach);
+  --button-bg-color: var(--ms-peach);
   background-color: var(--button-bg-color);
 }
 
@@ -127,6 +127,6 @@ const onMagicLinkClick = async () => {
 }
 
 .app-button__submit {
-  @apply bg-ink text-bg hover:bg-[#2a1d17];
+  @apply bg-ink text-bg hover:bg-strong-hover;
 }
 </style>

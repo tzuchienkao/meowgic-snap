@@ -22,17 +22,17 @@
             </app-button>
             <div
               v-if="isShowAccountPanel && user"
-              class="absolute z-1 top-full right-0 bg-surface rounded-3xl p-2 mt-3 min-w-[200px] text-ink shadow-shadow/6 shadow-xl">
+              class="absolute z-1 top-full right-0 bg-surface rounded-3xl p-2 mt-3 min-w-[200px] text-ink shadow-menu">
               <ul>
                 <li class="p-3">
                   <div>{{ userName }}</div>
                   <div class="text-xs text-muted">{{ userEmail }}</div>
                 </li>
-                <li class="p-3 hover:bg-accent/12 rounded-md">
+                <li class="p-3 hover:bg-hover-tint rounded-md">
                   修改名稱與設定
                 </li>
                 <li
-                  class="text-warning-text p-3 hover:bg-accent/12 rounded-md"
+                  class="text-warning-text p-3 hover:bg-hover-tint rounded-md"
                   @click="logout"
                 >
                   登出

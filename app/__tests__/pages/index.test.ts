@@ -464,9 +464,11 @@ describe('pages/index.vue', () => {
   });
 
   describe('guest login prompt', () => {
-    it('shows the login prompt and no current-settings button', () => {
+    it('shows calculate + 登入存檔 buttons (no separate login prompt) and no current-settings button', () => {
       const wrapper = mountPage();
-      expect(wrapper.find('.login-prompt').text()).toBe('登入後可存檔');
+      expect(wrapper.find('.login-prompt').exists()).toBe(false);
+      const actions = wrapper.find('.action-buttons').findAll('button').map((b) => b.text());
+      expect(actions).toEqual(['直接計算', '登入存檔 ฅ^•ﻌ•^ฅ']);
       expect(wrapper.find('.current-settings').exists()).toBe(false);
     });
 

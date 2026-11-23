@@ -46,4 +46,8 @@ const onButtonClick = () => {
 .app-button {
   @apply px-5 py-3 rounded-full bg-surface dark:text-accent cursor-pointer duration-300 flex items-center justify-center;
 }
+.app-button:disabled {
+  /* DS: disabled = solid soft fill + faint text, no opacity */
+  @apply bg-soft text-faint cursor-not-allowed;
+}
 </style>

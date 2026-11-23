@@ -1,0 +1,46 @@
+:root{
+  /* Source: Claude Design system tokens/spacing.css (keep in sync). */
+  /* 4-based spacing */
+  --ms-space-1:4px;
+  --ms-space-2:8px;
+  --ms-space-3:12px;
+  --ms-space-4:16px;
+  --ms-space-5:20px;
+  --ms-space-6:24px;
+  --ms-space-7:28px;
+  --ms-gap-inline:10px;    /* inside components 8–12 */
+  --ms-pad-card:22px;      /* card padding 20–24 */
+  --ms-gap-cards:20px;     /* between cards 14–20 */
+  --ms-gap-section:28px;
+
+  /* radii */
+  --ms-radius-card:28px;
+  --ms-radius-dialog:30px;
+  --ms-radius-tile:22px;   /* 次卡片 / 紙鈔格 20–24 */
+  --ms-radius-inset:20px;
+  --ms-radius-row:16px;    /* 明細列 / 提示 */
+  --ms-radius-menu-item:14px;
+  --ms-radius-checkbox:8px;
+  --ms-radius-ear:7px;
+  --ms-radius-pill:999px;
+
+  /* sizes */
+  --ms-tap-min:44px;
+  --ms-h-button:50px;
+  --ms-h-button-md:44px;
+  --ms-h-button-sm:36px;
+  --ms-h-button-xs:32px;
+  --ms-ear-size:28px;
+  --ms-ear-inset:28px;
+  --ms-content-max:1200px;
+
+  /* elevation — almost flat; only floating menus get a shadow */
+  --ms-shadow-menu:0 12px 32px rgba(58,42,34,.14);
+  --ms-shadow-none:none;
+
+  /* motion */
+  --ms-ease:cubic-bezier(.3,.7,.4,1);
+  --ms-dur-fast:.15s;
+  --ms-dur-theme:.25s;
+  --ms-toast-ms:2000;
+}

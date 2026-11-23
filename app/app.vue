@@ -10,13 +10,16 @@ import { useTheme } from "~/composables/useTheme.ts";
 import { useAuth } from "~/composables/useAuth.ts";
 
 const { agentMode, setAgentMode, initAgentMode, cleanupAgentMode } = useAgent();
-const { initTheme } = useTheme();
+const { theme, loadSavedTheme } = useTheme();
 const { user, initAuth } = useAuth();
 
 const isAuthReady = ref(false)
 
+// <html data-theme> follows the derived theme: guests light, members their saved choice.
+useHead({ htmlAttrs: { 'data-theme': theme } });
+
 onMounted(async () => {
-  initTheme();
+  loadSavedTheme();
   initAgentMode();
   await initAuth();
   setAgentMode();

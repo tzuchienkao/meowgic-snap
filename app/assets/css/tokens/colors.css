@@ -1,0 +1,124 @@
+/* 神機喵算 Meowgic Snap — color tokens.
+   Source: Claude Design system「Agnes's Meowgic Snap Design System」tokens/colors.css (keep in sync).
+   Light「橘白貓」is the default; Dark「黑貓」is applied with [data-theme="dark"]. */
+:root{
+  /* base — light / 橘白貓 */
+  --ms-bg:#FFF4EA;
+  --ms-surface:#FFFFFF;
+  --ms-soft:#FFF4EA;
+  --ms-ink:#3A2A22;
+  --ms-ink-2:#5A463C;
+  --ms-muted:#735D50;
+  --ms-faint:#C9B8AC;
+  --ms-placeholder:#B9A699;
+  --ms-line:#F3DCC8;
+  --ms-line-checkbox:#E6CDB8;
+  --ms-accent:#F08A4B;
+  --ms-on-accent:#3A2A22;
+  --ms-accent-text:#E0733A;
+  --ms-peach:#FFD9C2;
+  --ms-peach-sub:#8A5A40;
+  --ms-strong:#3A2A22;
+  --ms-strong-text:#FFF4EA;
+  --ms-strong-hover:#2A1D17;
+  --ms-hero-bg:#3A2A22;
+  --ms-hero-text:#FFF4EA;
+  --ms-hero-num:#F7A56E;
+  --ms-hero-chip:#4E3B31;
+  --ms-hero-chip-text:#FFE6D4;
+  --ms-stripe-a:#FFEBDD;
+  --ms-stripe-b:#FFF4EA;
+  --ms-warn-bg:#FFE9E2;
+  --ms-warn-text:#9A3412;
+  --ms-ok-bg:#FFD9C2;
+  --ms-ok-text:#3A2A22;
+  --ms-danger:#C2410C;
+  --ms-on-danger:#FFFFFF;
+  --ms-bill-chip:#FFE1CF;
+  --ms-coin-chip:#F6EDE6;
+  --ms-zero-bg:#FFFFFF;
+  --ms-coin-zero:#FFF4EA;
+  --ms-nav-active:#3A2A22;
+  --ms-nav-active-text:#FFF4EA;
+  --ms-hover:#FFE6D4;
+  --ms-hover-tint:rgba(240,138,75,.12);
+  --ms-scrim:rgba(58,42,34,.32);
+  --ms-scrim-strong:rgba(28,20,16,.4);
+  --ms-link:#C25A22;
+  --ms-link-hover:#8F3F14;
+  --ms-focus:#F08A4B;
+
+  /* 領款明細圖「灰藍貓」— export image only, theme-independent */
+  --ms-slip-bg:#E8EDF2;
+  --ms-slip-hero:#34404E;
+  --ms-slip-hero-text:#D9E2EB;
+  --ms-slip-num:#F2C14E;
+  --ms-slip-bill:#D3DEE9;
+  --ms-slip-coin:#E9EEF3;
+  --ms-slip-label:#3F4B59;
+  --ms-slip-ink:#22303D;
+  --ms-slip-muted:#566475;
+
+  /* semantic aliases */
+  --text-body:var(--ms-ink);
+  --text-secondary:var(--ms-ink-2);
+  --text-muted:var(--ms-muted);
+  --text-disabled:var(--ms-faint);
+  --text-accent-large:var(--ms-accent-text);
+  --surface-page:var(--ms-bg);
+  --surface-card:var(--ms-surface);
+  --surface-inset:var(--ms-soft);
+  --surface-hero:var(--ms-hero-bg);
+  --border-default:var(--ms-line);
+  --action-primary:var(--ms-accent);
+  --action-primary-text:var(--ms-on-accent);
+  --action-strong:var(--ms-strong);
+  --action-strong-text:var(--ms-strong-text);
+  --action-danger:var(--ms-danger);
+  --feedback-warn-bg:var(--ms-warn-bg);
+  --feedback-warn-text:var(--ms-warn-text);
+  --feedback-ok-bg:var(--ms-ok-bg);
+  --feedback-ok-text:var(--ms-ok-text);
+}
+[data-theme="dark"]{
+  --ms-bg:#1C1B1F;
+  --ms-surface:#2A2830;
+  --ms-soft:#232127;
+  --ms-ink:#F3EEE8;
+  --ms-ink-2:#D6CEC8;
+  --ms-muted:#ABA3A0;
+  --ms-faint:#6E6873;
+  --ms-placeholder:#6E6873;
+  --ms-line:#3E3A44;
+  --ms-line-checkbox:#3E3A44;
+  --ms-accent:#F2C14E;
+  --ms-on-accent:#1C1B1F;
+  --ms-accent-text:#F2C14E;
+  --ms-peach:#3E3A44;
+  --ms-peach-sub:#ABA3A0;
+  --ms-strong:#F2C14E;
+  --ms-strong-text:#1C1B1F;
+  --ms-strong-hover:#E0B03F;
+  --ms-hero-bg:#2A2830;
+  --ms-hero-text:#F3EEE8;
+  --ms-hero-num:#F2C14E;
+  --ms-hero-chip:#1C1B1F;
+  --ms-hero-chip-text:#D6CEC8;
+  --ms-stripe-a:#242228;
+  --ms-stripe-b:#1C1B1F;
+  --ms-warn-bg:#3A2626;
+  --ms-warn-text:#F5B8A0;
+  --ms-ok-bg:#F2C14E;
+  --ms-ok-text:#1C1B1F;
+  --ms-bill-chip:#4A4234;
+  --ms-coin-chip:#36333C;
+  --ms-zero-bg:#232127;
+  --ms-coin-zero:#1C1B1F;
+  --ms-nav-active:#F2C14E;
+  --ms-nav-active-text:#1C1B1F;
+  --ms-hover:#36333C;
+  --ms-hover-tint:rgba(242,193,78,.12);
+  --ms-scrim:rgba(0,0,0,.5);
+  --ms-scrim-strong:rgba(0,0,0,.55);
+  --ms-focus:#F2C14E;
+}

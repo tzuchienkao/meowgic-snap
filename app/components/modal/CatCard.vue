@@ -70,7 +70,7 @@ const onMaskClick = () => {
 }
 
 .modal-mask {
-  @apply absolute top-0 left-0 w-full h-full bg-black/50;
+  @apply absolute top-0 left-0 w-full h-full bg-scrim;
 }
 
 ::v-deep(.cat-card .cat-body) {

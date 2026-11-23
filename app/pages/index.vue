@@ -109,7 +109,7 @@
                   @click="onCalculateClick"
                 />
                 <app-button
-                  class="rounded-full text-bg bg-ink"
+                  class="strong-button"
                   label="登入存檔 ฅ^•ﻌ•^ฅ"
                   :disabled="isProcessing"
                   @click="onLoginSaveClick"
@@ -378,6 +378,7 @@ const onLoginSaveClick = async () => {
 }
 .money-snap__textarea {
   @apply rounded-2xl border border-line border-dashed border-2 text-ink p-4;
+  @apply outline-none focus:border-accent transition-colors duration-200;
   @apply disabled:opacity-50 disabled:cursor-not-allowed;
   min-height: 160px;
 }
@@ -402,22 +403,20 @@ const onLoginSaveClick = async () => {
   @apply flex grow gap-2;
 }
 .action-buttons ::v-deep(.app-button) {
-  @apply bg-bg dark:text-ink basis-full;
+  /* DS secondary: soft fill + ink text */
+  @apply bg-soft text-ink basis-full;
 }
-.action-buttons ::v-deep(.app-button):disabled {
-  @apply opacity-50 cursor-not-allowed;
-}
-.action-buttons ::v-deep(.app-button) ~ .app-button {
-  @apply bg-ink text-bg hover:bg-[#2a1d17];
+.action-buttons .strong-button {
+  /* DS strong (登入存檔): dark ink in light theme, cat-eye yellow in dark theme */
+  @apply bg-strong text-strong-text hover:enabled:bg-strong-hover;
 }
 .action-buttons .primary-button {
-  @apply text-ink bg-accent;
+  /* DS primary: text on accent is always dark (on-accent), never white or ink */
+  @apply bg-accent text-on-accent;
 }
-
-.login-prompt {
-  @apply flex items-center justify-center;
-}
-.login-prompt p {
-  @apply text-muted;
+/* Disabled — solid soft fill + faint text (DS: no semi-transparent text; --text-disabled = faint).
+   Declared last so it overrides every variant above. */
+.action-buttons ::v-deep(.app-button:disabled) {
+  @apply bg-soft text-faint cursor-not-allowed;
 }
 </style>

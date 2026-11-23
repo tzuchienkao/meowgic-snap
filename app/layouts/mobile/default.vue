@@ -50,7 +50,7 @@
     <main>
       <slot />
     </main>
-    <div v-show="isShowAccountPanel" class="mask fixed inset-0 bg-black/50"></div>
+    <div v-show="isShowAccountPanel" class="mask fixed inset-0 bg-scrim"></div>
   </mobile-wrapper>
 </template>
 
@@ -94,7 +94,7 @@ const onMenuClick = () => {
 }
 
 .menu-panel {
-  @apply z-1 absolute bg-surface rounded-3xl p-5 text-ink shadow-shadow/6 shadow-xl flex flex-col gap-3;
+  @apply z-1 absolute bg-surface rounded-3xl p-5 text-ink shadow-menu flex flex-col gap-3;
   width: calc(100vw - 16px); /** 16px is the horizontal padding */
   right: -8px;
   top: -8px;

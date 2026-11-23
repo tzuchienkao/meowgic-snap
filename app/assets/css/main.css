@@ -1,80 +1,140 @@
 @import "tailwindcss";
-@import "~/assets/css/tokens/color.css";
+/* Design tokens — mirrored from the Claude Design system「Agnes's Meowgic Snap Design System」tokens/ */
+@import "~/assets/css/tokens/colors.css";
 @import "~/assets/css/tokens/typography.css";
-@import "~/assets/css/tokens/shape.css";
+@import "~/assets/css/tokens/spacing.css";
+@import "~/assets/css/tokens/base.css";
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-@theme {
-  --font-sans: "Chiron GoRound TC", sans-serif;
-  
-  /* Color tokens */
-  --color-bg: var(--color-bg);
-  --color-surface: var(--color-surface);
-  --color-accent: var(--color-accent);
-  --color-accent-dark: var(--color-accent-dark);
-  --color-peach: var(--color-peach);
-  --color-ink: var(--color-ink);
-  --color-muted: var(--color-muted);
-  --color-line: var(--color-line);
-  --color-bill-chip: var(--color-bill-chip);
-  --color-coin-chip: var(--color-coin-chip);
-  --color-warning: var(--color-warning);
-  --color-warning-text: var(--color-warning-text);
-  --color-danger: var(--color-danger);
-  --color-shadow: var(--color-shadow);
-
-  /* Typography tokens */
-  --text-xs:   0.75rem;
-  --text-xs--line-height: 1rem;
-  --text-sm:   0.8125rem;
-  --text-sm--line-height: 1.375rem;
-  --text-base: 0.875rem;
-  --text-base--line-height: 1.7;
-  --text-btn:  0.9375rem;
-  --text-btn--line-height: 1.5rem;
-  --text-lg:   1.125rem;
-  --text-lg--line-height: 1.75rem;
-  --text-xl:   1.25rem;
-  --text-xl--line-height: 1.75rem;
-  --text-2xl:  1.75rem;
-  --text-2xl--line-height: 2rem;
-  --text-3xl:  2.25rem;
-  --text-3xl--line-height: 2.5rem;
-  --text-4xl:  2.75rem;
-  --text-4xl--line-height: 3rem;
-
-  /* Border radius tokens */
-  --radius-sm:   0.5rem;
-  --radius-md:   1rem;
-  --radius-lg:   1.25rem;
-  --radius-xl:   1.75rem;
-  --radius-full: 9999px;
-}
-
-html {
-  background-color: var(--color-bg);
-}
-
-/* 
- * 补充：定义自定义 utility classes
- * @theme中的tokens无法直接生成@apply可用的class，所以这里明确定义
+/*
+ * Tailwind theme → design-system tokens.
+ * `inline` makes utilities emit var(--ms-*) directly, so they follow [data-theme="dark"].
+ * Legacy names (accent-dark, warning, warning-text) are kept as aliases for existing templates.
+ * Note: font sizes avoid the names text-body / text-secondary / text-muted / text-disabled,
+ * which are colour aliases in tokens/colors.css.
  */
-@layer utilities {
-  .text-bg { color: var(--color-bg); }
-  .bg-bg { background-color: var(--color-bg); }
-  .text-surface { color: var(--color-surface); }
-  .bg-surface { background-color: var(--color-surface); }
-  .text-accent { color: var(--color-accent); }
-  .bg-accent { background-color: var(--color-accent); }
-  .text-ink { color: var(--color-ink); }
-  .bg-ink { background-color: var(--color-ink); }
-  .text-muted { color: var(--color-muted); }
-  .bg-muted { background-color: var(--color-muted); }
-  .text-warning-text { color: var(--color-warning-text); }
-  .bg-warning { background-color: var(--color-warning); }
-  
-  :where([data-theme="dark"], [data-theme="dark"] *) .dark\:bg-accent {
-    background-color: var(--color-accent);
-  }
-}
+@theme inline {
+  /* Fonts — all resolve to Chiron GoRound TC (see tokens/typography.css) */
+  --default-font-family: var(--ms-font-round);
+  --font-round: var(--ms-font-round);
+  --font-sans: var(--ms-font-sans);
+  --font-mono: var(--ms-font-mono);
 
+  /* Colors */
+  --color-bg: var(--ms-bg);
+  --color-surface: var(--ms-surface);
+  --color-soft: var(--ms-soft);
+  --color-ink: var(--ms-ink);
+  --color-ink-2: var(--ms-ink-2);
+  --color-muted: var(--ms-muted);
+  --color-faint: var(--ms-faint);
+  --color-placeholder: var(--ms-placeholder);
+  --color-line: var(--ms-line);
+  --color-line-checkbox: var(--ms-line-checkbox);
+  --color-accent: var(--ms-accent);
+  --color-on-accent: var(--ms-on-accent);
+  --color-accent-text: var(--ms-accent-text);
+  --color-accent-dark: var(--ms-accent-text); /* legacy alias */
+  --color-peach: var(--ms-peach);
+  --color-peach-sub: var(--ms-peach-sub);
+  --color-strong: var(--ms-strong);
+  --color-strong-text: var(--ms-strong-text);
+  --color-strong-hover: var(--ms-strong-hover);
+  --color-hero: var(--ms-hero-bg);
+  --color-hero-text: var(--ms-hero-text);
+  --color-hero-num: var(--ms-hero-num);
+  --color-hero-chip: var(--ms-hero-chip);
+  --color-hero-chip-text: var(--ms-hero-chip-text);
+  --color-stripe-a: var(--ms-stripe-a);
+  --color-stripe-b: var(--ms-stripe-b);
+  --color-warn-bg: var(--ms-warn-bg);
+  --color-warn-text: var(--ms-warn-text);
+  --color-warning: var(--ms-warn-bg);        /* legacy alias */
+  --color-warning-text: var(--ms-warn-text); /* legacy alias */
+  --color-ok-bg: var(--ms-ok-bg);
+  --color-ok-text: var(--ms-ok-text);
+  --color-danger: var(--ms-danger);
+  --color-on-danger: var(--ms-on-danger);
+  --color-bill-chip: var(--ms-bill-chip);
+  --color-coin-chip: var(--ms-coin-chip);
+  --color-zero-bg: var(--ms-zero-bg);
+  --color-coin-zero: var(--ms-coin-zero);
+  --color-nav-active: var(--ms-nav-active);
+  --color-nav-active-text: var(--ms-nav-active-text);
+  --color-hover: var(--ms-hover);
+  --color-hover-tint: var(--ms-hover-tint);
+  --color-scrim: var(--ms-scrim);
+  --color-scrim-strong: var(--ms-scrim-strong);
+  --color-link: var(--ms-link);
+  --color-link-hover: var(--ms-link-hover);
+  --color-focus: var(--ms-focus);
+  --color-slip-bg: var(--ms-slip-bg);
+  --color-slip-hero: var(--ms-slip-hero);
+  --color-slip-hero-text: var(--ms-slip-hero-text);
+  --color-slip-num: var(--ms-slip-num);
+  --color-slip-bill: var(--ms-slip-bill);
+  --color-slip-coin: var(--ms-slip-coin);
+  --color-slip-label: var(--ms-slip-label);
+  --color-slip-ink: var(--ms-slip-ink);
+  --color-slip-muted: var(--ms-slip-muted);
+
+  /* Font sizes — Tailwind scale mapped onto the design-system sizes */
+  --text-micro: var(--ms-size-micro);            /* 11 */
+  --text-xs: var(--ms-size-caption);             /* 12 caption */
+  --text-xs--line-height: 1rem;
+  --text-sm: var(--ms-size-helper);              /* 13 helper */
+  --text-sm--line-height: 1.375rem;
+  --text-body-sm: var(--ms-size-body-sm);        /* 14 */
+  --text-body-sm--line-height: var(--ms-leading-body);
+  --text-base: var(--ms-size-body);              /* 15 body */
+  --text-base--line-height: var(--ms-leading-body);
+  --text-btn: var(--ms-size-button);             /* 16 button */
+  --text-btn--line-height: 1.5rem;
+  --text-btn-sm: var(--ms-size-button-sm);       /* 13 small button */
+  --text-lg: var(--ms-size-h3);                  /* 18 card title */
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;                            /* 20 card title (upper end of h3 18–20) */
+  --text-xl--line-height: 1.75rem;
+  --text-h2: var(--ms-size-h2);                  /* 22 empty-state title */
+  --text-2xl: var(--ms-size-h1);                 /* 28 page title / bill count */
+  --text-2xl--line-height: 2rem;
+  --text-3xl: var(--ms-size-total);              /* 36 total */
+  --text-3xl--line-height: 2.5rem;
+  --text-4xl: var(--ms-size-hero);               /* 44 dashboard hero total */
+  --text-4xl--line-height: var(--ms-leading-tight);
+
+  /* Spacing (Tailwind's 4px base already matches; named DS gaps) */
+  --spacing-inline: var(--ms-gap-inline);    /* 10 */
+  --spacing-card: var(--ms-pad-card);        /* 22 */
+  --spacing-cards: var(--ms-gap-cards);      /* 20 */
+  --spacing-section: var(--ms-gap-section);  /* 28 */
+  --spacing-tap: var(--ms-tap-min);          /* 44 */
+  --spacing-button: var(--ms-h-button);      /* 50 */
+  --spacing-button-md: var(--ms-h-button-md);
+  --spacing-button-sm: var(--ms-h-button-sm);
+  --spacing-button-xs: var(--ms-h-button-xs);
+  --spacing-ear: var(--ms-ear-size);
+  --container-content: var(--ms-content-max); /* max-w-content */
+
+  /* Radii — legacy scale kept, DS names added */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: var(--ms-radius-card);
+  --radius-full: 9999px;
+  --radius-card: var(--ms-radius-card);
+  --radius-dialog: var(--ms-radius-dialog);
+  --radius-tile: var(--ms-radius-tile);
+  --radius-inset: var(--ms-radius-inset);
+  --radius-row: var(--ms-radius-row);
+  --radius-menu-item: var(--ms-radius-menu-item);
+  --radius-checkbox: var(--ms-radius-checkbox);
+  --radius-ear: var(--ms-radius-ear);
+  --radius-pill: var(--ms-radius-pill);
+
+  /* Elevation — flat; only floating menus */
+  --shadow-menu: var(--ms-shadow-menu);
+
+  /* Motion */
+  --ease-ms: var(--ms-ease);
+}
