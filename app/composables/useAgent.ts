@@ -1,5 +1,7 @@
 export const useAgent = () => {
-  const minWidth = '1200px'
+  // Design system: NavPills collapse to the ☰ menu under 900px
+  // (keep in sync with --breakpoint-desktop in assets/css/main.css)
+  const minWidth = '900px'
   const agentMode = useState('agentMode', () => '')
   
   const setAgentMode = () => {

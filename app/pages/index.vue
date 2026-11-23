@@ -1,7 +1,8 @@
 <template>
   <div class="page-index">
     <div class="page-index__header" />
-    <div class="page-index__body grid grid-cols-2 gap-6">
+    <!-- DS: one column under 900px, two columns from 900px (desktop: breakpoint) -->
+    <div class="page-index__body grid grid-cols-1 gap-6 desktop:grid-cols-2">
       <!-- Input Card -->
       <app-cat-ear-card>
         <div class="flex flex-col gap-4">
