@@ -4,44 +4,55 @@
       <template v-slot:menu>
         <div class="flex">
           <div class="relative">
-            <app-button
-              class="app-button--rounded-full__menu"
+            <app-icon-button
               :class="{ 'is-active': isShowAccountPanel }"
-              :label="isShowAccountPanel ? '×' : '☰'"
+              :tone="isShowAccountPanel ? 'soft' : 'strong'"
+              :label="isShowAccountPanel ? '關閉選單' : '開啟選單'"
+              :glyph="isShowAccountPanel ? '×' : '☰'"
+              :aria-expanded="isShowAccountPanel"
               @click="onMenuClick"
-            >
-            </app-button>
+            />
             <div
               v-if="isShowAccountPanel"
               class="menu-panel"
             >
               <div class="menu-panel--top">
                 <div class="account">
-                  <div>喵奴才</div>
-                  <div class="text-xs text-muted">meow@mail.com</div>
+                  <div>{{ userName }}</div>
+                  <div v-if="userEmail" class="text-xs text-muted">{{ userEmail }}</div>
                 </div>
-                <app-button
-                  class="app-button--rounded-full__theme"
-                  :label="currentTheme"
+                <app-icon-button
+                  class="text-nav-active"
+                  tone="soft"
+                  :label="themeToggleLabel"
+                  :glyph="currentTheme"
                   @click="onThemeToggle"
-                >
-                </app-button>
+                />
               </div>
               <ul class="grid grid-cols-2 gap-2">
                 <li
-                  v-for="tab in tabs"
-                  :key="tab.name"
+                  v-for="item in navItems"
+                  :key="item.name"
                 >
                   <app-button
+                    variant="secondary"
+                    full
                     class="app-button--rounded"
-                    :class="{ 'is-active': tab.isActive }"
-                    :label="tab.label"
-                    @click="onTabClick(tab)"
+                    :class="{ 'is-active': item.name === currentRouteName }"
+                    :aria-current="item.name === currentRouteName ? 'page' : undefined"
+                    :label="item.label"
+                    @click="onNavigate(item.name)"
                   >
                   </app-button>
                 </li>
               </ul>
-              <div class="text-warning-text bg-bg dark:text-accent col-span-2 rounded-full text-center p-3">登出</div>
+              <button
+                type="button"
+                class="text-warning-text bg-bg dark:text-accent col-span-2 rounded-full text-center p-3 w-full cursor-pointer"
+                @click="onLogoutClick"
+              >
+                登出
+              </button>
             </div>
           </div>
         </div>
@@ -56,9 +67,11 @@
 
 <script setup lang="ts">
 const {
-  tabs,
-  onTabClick,
+  navItems,
+  currentRouteName,
+  onNavigate,
   currentTheme,
+  themeToggleLabel,
   onThemeToggle,
   isShowAccountPanel,
   toggleAccountPanel
@@ -66,6 +79,13 @@ const {
 
 const onMenuClick = () => {
   toggleAccountPanel();
+};
+
+const { userName, userEmail, onLogout } = useUserAccount();
+
+const onLogoutClick = () => {
+  toggleAccountPanel();
+  onLogout();
 };
 </script>
 
@@ -76,16 +96,7 @@ const onMenuClick = () => {
   @apply text-center bg-bg text-ink dark:text-accent rounded-md w-full px-4 py-5;
 }
 
-[class*=app-button--rounded-full] {
-  @apply w-12 h-12 px-0 py-0 text-center bg-ink text-bg dark:bg-accent dark:text-bg;
-}
-
-.app-button.app-button--rounded-full__theme,
-.app-button.app-button--rounded-full__menu.is-active {
-  @apply bg-bg text-ink dark:text-accent;
-}
-
-.app-button.app-button--rounded-full__menu.is-active {
+.app-icon-button.is-active {
   @apply z-2 relative;
 }
 
@@ -102,6 +113,6 @@ const onMenuClick = () => {
 
 .menu-panel--top {
   @apply flex justify-between items-center -mt-3;
-  width: calc(100% - 48px); /** 48px is the width of the menu button */
+  width: calc(100% - 44px); /** 44px is the width of the menu IconButton */
 }
 </style>

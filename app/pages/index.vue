@@ -3,7 +3,7 @@
     <div class="page-index__header" />
     <div class="page-index__body grid grid-cols-2 gap-6">
       <!-- Input Card -->
-      <app-cat-card>
+      <app-cat-ear-card>
         <div class="flex flex-col gap-4">
           <!-- Header -->
           <div class="flex flex-col gap-1 text-center">
@@ -14,6 +14,8 @@
           <!-- Current Settings (Logged In Only) -->
           <div v-if="isLogin" class="current-settings">
             <app-button
+              variant="secondary"
+              size="sm"
               class="text-xs rounded-full text-muted bg-bg"
               :label="`目前設定：姓名,金額 · ${denominations} 種面額`"
             >
@@ -60,24 +62,36 @@
 
           <!-- Input Textarea -->
           <div class="money-snap">
-            <textarea
+            <app-textarea
               v-model="moneySnapInput"
               class="money-snap__textarea"
+              aria-label="貼上金額資料，每行一筆"
               :placeholder="placeholderText"
               :disabled="isProcessing"
               :readonly="resultState.isCalculated"
             />
             <div class="money-snap__notices">
               <app-button
-                class="text-xs rounded-full text-muted bg-bg"
-                label="↑ 匯入 CSV"
+                variant="secondary"
+                size="sm"
+                icon="↑"
+                label="匯入 CSV"
                 :disabled="isProcessing"
               />
-              <span class="text-muted">已貼 {{ entryCount }} / 1,000 筆</span>
+              <app-chip class="money-snap__counter" :tone="entryCount > 1000 ? 'warn' : 'soft'">
+                已貼 {{ entryCount }} / 1,000 筆
+              </app-chip>
             </div>
-            <ul v-if="validationErrors.length" class="money-snap__errors">
-              <li v-for="error in validationErrors" :key="error">{{ error }}</li>
-            </ul>
+            <app-alert
+              v-if="validationErrors.length"
+              class="money-snap__error-box"
+              :title="lineErrors.length ? '喵？有幾行看不懂 (ΦдΦ)' : ''"
+            >
+              <ul class="money-snap__errors">
+                <li v-for="error in visibleErrors" :key="error">{{ error }}</li>
+                <li v-if="hiddenErrorCount" class="money-snap__errors-more">還有 {{ hiddenErrorCount }} 行也看不懂</li>
+              </ul>
+            </app-alert>
           </div>
 
           <!-- Action Buttons -->
@@ -86,13 +100,16 @@
             <template v-if="isLogin">
               <app-button
                 v-if="!resultState.isCalculated"
-                class="primary-button"
+                variant="primary"
+                full
                 label="計算並存檔 ฅ^•ﻌ•^ฅ"
                 :disabled="!canCalculate || isProcessing"
                 @click="onCalculateClick"
               />
               <app-button
                 v-else
+                variant="secondary"
+                full
                 label="清除資料，算下一筆"
                 :disabled="isProcessing"
                 @click="onClearClick"
@@ -103,13 +120,15 @@
             <template v-else>
               <template v-if="!resultState.isCalculated">
                 <app-button
-                  class="primary-button"
+                  variant="primary"
+                  full
                   label="直接計算"
                   :disabled="!canCalculate || isProcessing"
                   @click="onCalculateClick"
                 />
                 <app-button
-                  class="strong-button"
+                  variant="strong"
+                  full
                   label="登入存檔 ฅ^•ﻌ•^ฅ"
                   :disabled="isProcessing"
                   @click="onLoginSaveClick"
@@ -117,6 +136,8 @@
               </template>
               <app-button
                 v-else
+                variant="secondary"
+                full
                 label="清除資料，算下一筆"
                 :disabled="isProcessing"
                 @click="onClearClick"
@@ -124,51 +145,86 @@
             </template>
           </div>
         </div>
-      </app-cat-card>
+      </app-cat-ear-card>
 
-      <!-- Summary Card -->
+      <!-- Result: illustration placeholder until calculated, then the dark total card
+           (DS: only one heaviest element per screen) -->
       <div>
-        <app-cat-card
-          :bgColor="summaryCard.bgColor"
-          :textColor="summaryCard.textColor"
+        <app-illustration-slot
+          v-if="!resultState.isCalculated"
+          class="result-placeholder"
+          label="貓咪插畫：橘白貓趴著等"
+          radius="card"
+          :stripe="10"
         >
-          <div class="summary-card flex flex-col gap-4">
-            <!-- Result State: Not Calculated -->
-            <template v-if="!resultState.isCalculated">
-              <div class="summary-card__placeholder">
-                <p class="text-muted text-sm">粘貼資料後，點擊「計算」以查看結果</p>
-              </div>
-            </template>
+          <p class="result-placeholder__text">算好的結果會出現在這裡喵</p>
+        </app-illustration-slot>
 
-            <!-- Result State: Calculated -->
-            <template v-else>
-              <div class="flex justify-between items-end gap-3">
-                <span>總金額</span>
-                <p>
-                  <span class="text-accent-dark text-4xl mr-1">{{ formatAmount(resultState.totalAmount) }}</span>元
-                </p>
-              </div>
-              <div class="summary-card__meta">
-                <span>總筆數：{{ resultState.entryCount }} 筆 · {{ resultState.uniqueNames }} 人</span>
-                <span>姓名,金額</span>
-                <span v-if="resultState.calculatedAt">計算時間 {{ resultState.calculatedAt }}</span>
-              </div>
-              <ul class="summary-card__rows">
-                <li v-for="row in resultState.rows" :key="row.name" class="summary-card__row">
-                  <div class="summary-card__row-head">
-                    <span>{{ row.name }}</span>
-                    <span>{{ formatAmount(row.total) }} 元</span>
-                  </div>
-                  <div class="summary-card__row-body">
-                    <span v-for="(count, denom) in row.denominations" :key="`${row.name}-${denom}`">
-                      {{ denom }}×{{ count }}
-                    </span>
-                  </div>
-                </li>
-              </ul>
-            </template>
+        <div v-else class="result-area">
+          <app-total-card
+            class="summary-card"
+            :amount="formatAmount(resultState.totalAmount)"
+            :chips="summaryChips"
+          />
+
+          <!-- TODO: export ActionTiles (⧉ 複製領款單 · ▣ 下載明細圖 · ↓ 匯出 CSV) go here, in a
+               3-column grid, once those features are built (hidden until then). -->
+
+          <!-- Denomination totals across everyone -->
+          <section class="result-area__denoms" aria-labelledby="result-bills-title">
+            <h3 id="result-bills-title" class="result-area__section-title">紙鈔</h3>
+            <div class="result-area__bills">
+              <app-denom-cell
+                v-for="cell in billCells"
+                :key="cell.value"
+                :value="cell.value"
+                :count="cell.count"
+                :state="cell.isTop ? 'top' : undefined"
+              />
+            </div>
+            <h3 class="result-area__section-title">硬幣</h3>
+            <div class="result-area__coins">
+              <app-denom-cell
+                v-for="cell in coinCells"
+                :key="cell.value"
+                kind="coin"
+                :value="cell.value"
+                :count="cell.count"
+              />
+            </div>
+            <p class="result-area__unit">單位：個</p>
+          </section>
+
+          <!-- Per-person details (collapsible) -->
+          <div class="result-area__details">
+            <button
+              type="button"
+              class="result-area__details-toggle"
+              :aria-expanded="isDetailsOpen"
+              aria-controls="result-details-list"
+              @click="isDetailsOpen = !isDetailsOpen"
+            >
+              <span>每筆明細</span>
+              <span class="result-area__details-hint">{{ isDetailsOpen ? '收起 ▲' : '展開 ▼' }}</span>
+            </button>
+            <ul v-show="isDetailsOpen" id="result-details-list" class="summary-card__rows">
+              <li v-for="row in resultState.rows" :key="row.name" class="summary-card__row">
+                <div class="summary-card__row-head">
+                  <span>{{ row.name }}</span>
+                  <span>{{ formatAmount(row.total) }} 元</span>
+                </div>
+                <div class="summary-card__row-body">
+                  <app-denom-badge
+                    v-for="item in row.items"
+                    :key="`${row.name}-${item.denomination}`"
+                    :value="item.denomination"
+                    :count="item.count"
+                  />
+                </div>
+              </li>
+            </ul>
           </div>
-        </app-cat-card>
+        </div>
       </div>
     </div>
   </div>
@@ -179,27 +235,38 @@ import { computed, ref } from 'vue';
 import {
   calculateDenominations,
   countEntryLines,
-  DENOMINATIONS,
+  DEFAULT_DENOMINATIONS,
+  isBill,
   parseMoneySnap,
   type ParsedEntry,
 } from '~/utils/moneyParser';
 
 // Composables
-const { theme } = useTheme();
 const { user } = useAuth();
+
+interface IDenominationItem {
+  denomination: number;
+  count: number;
+}
 
 interface IResultRow {
   name: string;
   total: number;
-  denominations: Record<number, number>;
+  /** Non-zero denominations only, smallest → largest */
+  items: IDenominationItem[];
 }
+
+const MAX_VISIBLE_ERRORS = 5;
 
 // State
 const isLogin = computed(() => !!user.value);
-const denominations = computed(() => DENOMINATIONS.length);
+// No 偏好設定 yet: everyone uses the common denominations
+const activeDenominations = DEFAULT_DENOMINATIONS;
+const denominations = computed(() => activeDenominations.length);
 const isProcessing = ref(false);
 const moneySnapInput = ref('');
 const validationErrors = ref<string[]>([]);
+const isDetailsOpen = ref(true);
 
 // Result state - explicit "not calculated" vs "calculated" behavior
 const resultState = ref({
@@ -215,6 +282,16 @@ const resultState = ref({
 // Counts non-blank lines (header row excluded); may exceed 1,000 for display — the parser enforces the limit.
 const entryCount = computed(() => countEntryLines(moneySnapInput.value));
 
+// Line errors start with 「第 N 行」; anything else (e.g. the entry-limit message) is shown as-is.
+const isLineError = (error: string) => error.startsWith('第 ');
+const lineErrors = computed(() => validationErrors.value.filter(isLineError));
+const otherErrors = computed(() => validationErrors.value.filter((e) => !isLineError(e)));
+const visibleErrors = computed(() => [
+  ...lineErrors.value.slice(0, MAX_VISIBLE_ERRORS),
+  ...otherErrors.value,
+]);
+const hiddenErrorCount = computed(() => Math.max(0, lineErrors.value.length - MAX_VISIBLE_ERRORS));
+
 const canCalculate = computed(() => {
   return moneySnapInput.value.trim().length > 0;
 });
@@ -223,16 +300,54 @@ const placeholderText = computed(() => {
   return '張三,18500\n李四,"45,800"\n王五,NT$32,000\n張三,1999';
 });
 
-const summaryCard = computed(() => {
-  return {
-    bgColor: theme.value === 'light' ? 'ink' : 'surface',
-    textColor: theme.value === 'light' ? 'bg' : 'ink'
-  };
+
+const summaryChips = computed(() => {
+  const { entryCount, uniqueNames, calculatedAt } = resultState.value;
+  const chips = [`總筆數：${entryCount} 筆 · ${uniqueNames} 人`, '姓名,金額'];
+  if (calculatedAt) chips.push(`計算時間 ${calculatedAt}`);
+  return chips;
 });
+
+// Totals per denomination across everyone (bills large → small, then coins)
+const denominationTotals = computed(() => {
+  const totals: Record<number, number> = {};
+  resultState.value.rows.forEach((row) => {
+    row.items.forEach(({ denomination, count }) => {
+      totals[denomination] = (totals[denomination] ?? 0) + count;
+    });
+  });
+  return totals;
+});
+
+// DS: the most-used bill is highlighted (ties → the larger bill); no highlight when no bills are used
+const billCells = computed(() => {
+  const cells = activeDenominations.filter(isBill).map((value) => ({
+    value,
+    count: denominationTotals.value[value] ?? 0,
+    isTop: false,
+  }));
+  const top = cells.reduce((best, cell) => (cell.count > best.count ? cell : best), cells[0]!);
+  if (top.count > 0) top.isTop = true;
+  return cells;
+});
+
+const coinCells = computed(() =>
+  activeDenominations.filter((value) => !isBill(value)).map((value) => ({
+    value,
+    count: denominationTotals.value[value] ?? 0,
+  })),
+);
 
 const formatAmount = (amount: number) => {
   return new Intl.NumberFormat('en-US').format(amount);
 };
+
+// Smallest → largest, zero counts dropped
+const toDenominationItems = (denominations: Record<number, number>): IDenominationItem[] =>
+  [...activeDenominations]
+    .sort((a, b) => a - b)
+    .map((denomination) => ({ denomination, count: denominations[denomination] ?? 0 }))
+    .filter((item) => item.count > 0);
 
 const formatTime = () => {
   return new Date().toLocaleTimeString('zh-TW', {
@@ -254,7 +369,7 @@ const aggregateEntries = (entries: ParsedEntry[]) => {
   return Array.from(resultMap.entries()).map(([name, total]) => ({
     name,
     total,
-    denominations: calculateDenominations(total).denominations,
+    items: toDenominationItems(calculateDenominations(total, activeDenominations).denominations),
   }));
 };
 
@@ -288,6 +403,7 @@ const onCalculateClick = async () => {
     }
 
     const rows = aggregateEntries(parsedResult.entries);
+    isDetailsOpen.value = true;
 
     resultState.value = {
       isCalculated: true,
@@ -347,76 +463,72 @@ const onLoginSaveClick = async () => {
   @apply text-ink;
 }
 
-.summary-card__placeholder {
-  @apply py-8 text-center;
+.result-placeholder {
+  @apply p-6 min-h-70;
 }
-.summary-card__placeholder p {
-  @apply text-muted text-sm;
+.result-placeholder__text {
+  @apply text-lg;
 }
 
-.summary-card__meta {
-  @apply flex gap-2;
+.result-area {
+  @apply flex flex-col gap-4;
 }
-.summary-card__meta span {
-  @apply bg-muted dark:bg-bg text-bg dark:text-muted px-3 py-1 rounded-full text-sm;
+.result-area__denoms {
+  @apply flex flex-col gap-3;
+}
+.result-area__section-title {
+  @apply px-2 pt-1 text-btn text-ink;
+}
+.result-area__bills {
+  @apply grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-3;
+}
+.result-area__coins {
+  @apply grid grid-cols-5 gap-2 max-w-110;
+}
+.result-area__unit {
+  @apply px-2 text-xs text-muted;
+}
+.result-area__details {
+  @apply overflow-hidden rounded-3xl bg-surface;
+}
+/* DS height 54 → 16px text (24px line) + 16px ×2 = 56 */
+.result-area__details-toggle {
+  @apply flex w-full items-center justify-between px-5 py-4 text-btn leading-6 text-ink cursor-pointer;
+}
+.result-area__details-hint {
+  @apply text-body-sm text-muted;
 }
 .summary-card__rows {
-  @apply flex flex-col gap-2;
+  @apply flex flex-col gap-2 px-3 pb-3;
 }
+/* DS row: soft bg, radius 16, padding 10px 14px → 12px 16px */
 .summary-card__row {
-  @apply bg-muted dark:bg-bg text-bg dark:text-muted rounded-xl p-3;
+  @apply flex flex-col gap-1 rounded-row bg-soft px-4 py-3;
 }
 .summary-card__row-head {
-  @apply flex justify-between font-bold text-sm;
+  @apply flex items-baseline justify-between;
+}
+.summary-card__row-head span:first-child {
+  @apply text-body-sm font-medium;
+}
+.summary-card__row-head span:last-child {
+  @apply text-btn;
 }
 .summary-card__row-body {
-  @apply flex flex-wrap gap-2 mt-2 text-xs;
+  @apply flex flex-wrap gap-2 pt-1;
 }
 
 .money-snap {
   @apply flex flex-col gap-2;
 }
-.money-snap__textarea {
-  @apply rounded-2xl border border-line border-dashed border-2 text-ink p-4;
-  @apply outline-none focus:border-accent transition-colors duration-200;
-  @apply disabled:opacity-50 disabled:cursor-not-allowed;
-  min-height: 160px;
-}
 .money-snap__notices {
   @apply flex justify-between items-center;
 }
-.money-snap__notices ::v-deep(.app-button),
-.money-snap__notices span {
-  @apply rounded-full bg-bg text-sm;
-}
-.money-snap__notices ::v-deep(.app-button) {
-  @apply text-ink p-3 inline-block;
-}
-.money-snap__notices span {
-  @apply text-muted px-3 py-1;
-}
 .money-snap__errors {
-  @apply text-warning-text text-xs list-disc list-inside;
+  @apply flex flex-col gap-1;
 }
 
 .action-buttons {
   @apply flex grow gap-2;
-}
-.action-buttons ::v-deep(.app-button) {
-  /* DS secondary: soft fill + ink text */
-  @apply bg-soft text-ink basis-full;
-}
-.action-buttons .strong-button {
-  /* DS strong (登入存檔): dark ink in light theme, cat-eye yellow in dark theme */
-  @apply bg-strong text-strong-text hover:enabled:bg-strong-hover;
-}
-.action-buttons .primary-button {
-  /* DS primary: text on accent is always dark (on-accent), never white or ink */
-  @apply bg-accent text-on-accent;
-}
-/* Disabled — solid soft fill + faint text (DS: no semi-transparent text; --text-disabled = faint).
-   Declared last so it overrides every variant above. */
-.action-buttons ::v-deep(.app-button:disabled) {
-  @apply bg-soft text-faint cursor-not-allowed;
 }
 </style>

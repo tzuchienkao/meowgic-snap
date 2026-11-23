@@ -5,8 +5,8 @@
       <p class="text-muted text-sm mt-1">喵奴才，這是你到目前為止的兌換紀錄喵</p>
     </div>
     <div class="page-settings__body">
-      <app-cat-card>
-      </app-cat-card>
+      <app-cat-ear-card>
+      </app-cat-ear-card>
     </div>
   </div>
 </template>

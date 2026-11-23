@@ -3,7 +3,8 @@
 @import "~/assets/css/tokens/colors.css";
 @import "~/assets/css/tokens/typography.css";
 @import "~/assets/css/tokens/spacing.css";
-@import "~/assets/css/tokens/base.css";
+/* base.css goes in the base layer so component styles (e.g. outline-none on fields) can override it */
+@import "~/assets/css/tokens/base.css" layer(base);
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*

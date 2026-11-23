@@ -3,6 +3,9 @@
     <app-header>
       <template v-slot:menu>
         <app-button
+          class="login-button"
+          variant="surface"
+          size="md"
           label="登入"
           @click="openModal"
         >
@@ -12,38 +15,41 @@
     <main>
       <slot />
     </main>
-    <modal-cat-card
-      v-if="isShowModal"
+    <app-dialog
+      :open="isShowModal"
       :title="model.title"
-      :description="model.description"
-      :is-static="model.isStatic"
-      @close-click="closeModal"
+      cat-ears
+      closable
+      :persistent="model.isStatic"
+      @close="onDialogClose"
     >
-      <template #modal-body>
-        <div class="text-muted text-sm flex flex-col gap-1">
-          <label>{{ email.label }}</label>
-          <app-input
-            type="email"
-            :model-value="email.value"
-            :placeholder="email.placeholder"
-            @update:model-value="email.onEmailUpdate"
-          />
-        </div>
-      </template>
-      <template #modal-footer>
-        <app-button
-          class="app-button__submit"
-          :label="loading ? '寄送中...' : '寄送魔法連結'"
-          :disabled="loading"
-          @click="onMagicLinkClick"
-        >
-        </app-button>
-      </template>
-    </modal-cat-card>
+      <p class="login-dialog__description">{{ model.description }}</p>
+      <app-input
+        ref="emailInput"
+        type="email"
+        autocomplete="email"
+        :label="email.label"
+        :model-value="email.value"
+        :placeholder="email.placeholder"
+        :invalid="!!email.error"
+        :hint="email.error"
+        @update:model-value="email.onEmailUpdate"
+        @blur="email.onEmailBlur"
+      />
+      <app-button
+        variant="strong"
+        full
+        :label="loading ? '寄送中...' : '寄送魔法連結'"
+        :disabled="loading"
+        @click="onMagicLinkClick"
+      />
+    </app-dialog>
   </desktop-wrapper>
 </template>
 
 <script setup lang="ts">
+import { validateEmail } from '~/utils/validators';
+
 const {
   isShowModal,
   openModal,
@@ -61,22 +67,37 @@ const model = reactive({
   isStatic: true
 });
 
+const emailInput = ref<{ $el: HTMLElement } | null>(null);
+
 const email = reactive({
   label: '信箱',
   value: '',
   placeholder: 'example@mail.com',
-  
+  error: '',
+
   onEmailUpdate(value: string) {
     email.value = value;
+    // Once an error is showing, re-check while typing so it clears as soon as the value is valid
+    if (email.error) email.error = validateEmail(value);
+  },
+
+  // Check on blur only when something was typed (an empty field is reported on submit)
+  onEmailBlur() {
+    if (email.value.trim()) email.error = validateEmail(email.value);
   }
 });
+
+const onDialogClose = () => {
+  email.error = '';
+  closeModal();
+};
 
 const handleLogin = async () => {
   loading.value = true
 
   try {
     const { error } = await $supabase.auth.signInWithOtp({
-      email: email.value,
+      email: email.value.trim(),
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
@@ -95,6 +116,12 @@ const handleLogin = async () => {
 }
 
 const onMagicLinkClick = async () => {
+  email.error = validateEmail(email.value);
+  if (email.error) {
+    emailInput.value?.$el?.querySelector('input')?.focus();
+    return;
+  }
+
   try {
     await handleLogin();
     closeModal();
@@ -107,26 +134,12 @@ const onMagicLinkClick = async () => {
 <style scoped>
 @reference "~/assets/css/main.css";
 
-.app-button:hover {
+.login-button:hover {
   --button-bg-color: var(--ms-peach);
   background-color: var(--button-bg-color);
 }
 
-:deep(.modal-cat-card .cat-card) {
-  width: min(420px, -32px + 100vw);
-}
-
-:deep(.modal-cat-card .modal-header) {
-  @apply text-center;
-}
-:deep(.modal-cat-card .modal-header .modal-header__title) {
-  @apply text-2xl text-ink;
-}
-:deep(.modal-cat-card .modal-header .modal-header__description) {
-  @apply text-base text-muted;
-}
-
-.app-button__submit {
-  @apply bg-ink text-bg hover:bg-strong-hover;
+.login-dialog__description {
+  @apply text-center text-base text-muted;
 }
 </style>

@@ -1,33 +1,31 @@
-import type { IAppTab } from '~/components/app/Tab/ITab';
-import { NAVIGATION_TABS } from '~/constants/navigation';
+import { NAVIGATION_ITEMS } from '~/constants/navigation';
 import { useTheme } from '~/composables/useTheme';
 import { Themes } from '~/types/theme';
 import { useModal } from '~/composables/useModal';
 
 export const useLayoutMenuState = () => {
   const router = useRouter();
+  const route = useRoute();
   const { theme, toggleTheme } = useTheme();
 
-  const tabs = reactive<IAppTab[]>(
-    NAVIGATION_TABS.map((tab) => ({
-      ...tab,
-      isActive: false
-    }))
-  );
-
-  const currentTab = ref('index');
+  const navItems = NAVIGATION_ITEMS;
+  /** Active page comes from the route, so back/forward and other links keep it in sync. */
+  const currentRouteName = computed(() => route.name);
   const isShowAccountPanel = ref(false);
 
-  const onTabClick = (tab: IAppTab) => {
-    tabs.forEach((t: IAppTab) => {
-      t.isActive = t.name === tab.name;
-    });
-    currentTab.value = tab.name;
-    router.push({ name: tab.name });
+  /** Mobile ☰ menu: go to the page and close the panel. */
+  const onNavigate = (name: string) => {
+    isShowAccountPanel.value = false;
+    router.push({ name });
   };
 
   const currentTheme = computed(() => {
     return theme.value === Themes.Dark ? '☀' : '☾';
+  });
+
+  /** Accessible label for the theme IconButton (DS copy). */
+  const themeToggleLabel = computed(() => {
+    return theme.value === Themes.Dark ? '切換為橘白貓主題（淺色）' : '切換為黑貓主題（深色）';
   });
 
   const onThemeToggle = () => {
@@ -38,23 +36,14 @@ export const useLayoutMenuState = () => {
     isShowAccountPanel.value = !isShowAccountPanel.value;
   };
 
-  const initPage = () => {
-    const routerName = router.currentRoute.value.name;
-    tabs.forEach((tab: IAppTab) => {
-      tab.isActive = tab.name === routerName;
-    });
-    currentTab.value = routerName as string;
-  };
-
-  initPage();
-
   const { isShowModal, openModal, closeModal } = useModal();
 
   return {
-    tabs,
-    currentTab,
-    onTabClick,
+    navItems,
+    currentRouteName,
+    onNavigate,
     currentTheme,
+    themeToggleLabel,
     onThemeToggle,
     isShowAccountPanel,
     toggleAccountPanel,

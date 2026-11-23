@@ -5,8 +5,8 @@
       <p class="text-muted text-sm mt-1">每一次兌換都幫你記下來了，紀錄保存 2 年</p>
     </div>
     <div class="page-settings__body">
-      <app-cat-card>
-      </app-cat-card>
+      <app-cat-ear-card>
+      </app-cat-ear-card>
     </div>
   </div>
 </template>
