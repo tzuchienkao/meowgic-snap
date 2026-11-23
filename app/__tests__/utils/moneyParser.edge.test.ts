@@ -1,11 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { parseMoneySnap, calculateDenominations, countEntryLines } from '../../utils/moneyParser';
+import {
+  parseMoneySnap,
+  calculateDenominations,
+  countEntryLines,
+  ALL_DENOMINATIONS,
+  DEFAULT_DENOMINATIONS,
+  isBill
+} from '../../utils/moneyParser';
 
 const snippet = (content: string) =>
   Array.from(content).length > 20 ? `${Array.from(content).slice(0, 20).join('')}…` : content;
-const FORMAT_ERROR = (line: number, content: string) => `第 ${line} 行: 格式錯誤（${snippet(content)}）`;
-const LIMIT_ERROR = '超過最大筆數限制 (1000)';
-const CAP_ERROR = (line: number, content: string) => `第 ${line} 行: 金額超過上限 (999,999)（${snippet(content)}）`;
+const LINE_ERROR = (line: number, content: string, reason: string) => `第 ${line} 行「${snippet(content)}」${reason}`;
+const COMMA_ERROR = (line: number, content: string) => LINE_ERROR(line, content, '少了逗號');
+const NAME_MISSING_ERROR = (line: number, content: string) => LINE_ERROR(line, content, '少了姓名');
+const AMOUNT_ERROR = (line: number, content: string) => LINE_ERROR(line, content, '不是金額');
+const LIMIT_ERROR = '太多了喵，算不動 (=ΦдΦ=)（最多 1,000 筆）';
+const CAP_ERROR = (line: number, content: string) => LINE_ERROR(line, content, '金額超過 999,999');
+
+type RejectReason = 'comma' | 'name' | 'amount';
+const REJECT_ERRORS: Record<RejectReason, (line: number, content: string) => string> = {
+  comma: COMMA_ERROR,
+  name: NAME_MISSING_ERROR,
+  amount: AMOUNT_ERROR
+};
 
 const expectInvariants = (result: ReturnType<typeof parseMoneySnap>) => {
   expect(result.totalEntries).toBe(result.entries.length);
@@ -14,11 +31,11 @@ const expectInvariants = (result: ReturnType<typeof parseMoneySnap>) => {
   expect(result.success).toBe(result.entries.length > 0);
 };
 
-const expectRejected = (input: string) => {
+const expectRejected = (input: string, reason: RejectReason = 'amount') => {
   const result = parseMoneySnap(input);
   expect(result.success).toBe(false);
   expect(result.entries).toHaveLength(0);
-  expect(result.errors).toEqual([FORMAT_ERROR(1, input.trim())]);
+  expect(result.errors).toEqual([REJECT_ERRORS[reason](1, input.trim())]);
   return result;
 };
 
@@ -75,17 +92,17 @@ describe('parseMoneySnap - edge cases', () => {
   describe('Error line numbering', () => {
     it('should count blank lines when numbering errors', () => {
       const result = parseMoneySnap('\n\n張三');
-      expect(result.errors).toEqual([FORMAT_ERROR(3, '張三')]);
+      expect(result.errors).toEqual([COMMA_ERROR(3, '張三')]);
     });
 
     it('should count blank lines when numbering errors after CRLF normalization', () => {
       const result = parseMoneySnap('張三,100\r\n\r\nbad');
-      expect(result.errors).toEqual([FORMAT_ERROR(3, 'bad')]);
+      expect(result.errors).toEqual([COMMA_ERROR(3, 'bad')]);
     });
 
     it('should report multiple errors in line order', () => {
       const result = parseMoneySnap('bad1\n張三,100\n\nbad2\n李四,abc');
-      expect(result.errors).toEqual([FORMAT_ERROR(1, 'bad1'), FORMAT_ERROR(4, 'bad2'), FORMAT_ERROR(5, '李四,abc')]);
+      expect(result.errors).toEqual([COMMA_ERROR(1, 'bad1'), COMMA_ERROR(4, 'bad2'), AMOUNT_ERROR(5, '李四,abc')]);
       expect(result.entries).toEqual([{ name: '張三', amount: 100 }]);
     });
   });
@@ -93,22 +110,22 @@ describe('parseMoneySnap - edge cases', () => {
   describe('Error message content', () => {
     it('should include the trimmed line content in the error', () => {
       const result = parseMoneySnap('   bad line   ');
-      expect(result.errors).toEqual(['第 1 行: 格式錯誤（bad line）']);
+      expect(result.errors).toEqual(['第 1 行「bad line」少了逗號']);
     });
 
     it('should truncate long line content to 20 characters with an ellipsis', () => {
       const result = parseMoneySnap('這是一行非常非常非常非常非常非常長的錯誤資料,abc');
-      expect(result.errors).toEqual(['第 1 行: 格式錯誤（這是一行非常非常非常非常非常非常長的錯誤…）']);
+      expect(result.errors).toEqual(['第 1 行「這是一行非常非常非常非常非常非常長的錯誤…」不是金額']);
     });
 
     it('should not truncate content of exactly 20 characters', () => {
       const line = '12345678901234567890';
-      expect(parseMoneySnap(line).errors).toEqual([`第 1 行: 格式錯誤（${line}）`]);
+      expect(parseMoneySnap(line).errors).toEqual([`第 1 行「${line}」少了逗號`]);
     });
 
     it('should count emoji as single characters when truncating', () => {
       const line = '😀'.repeat(25);
-      expect(parseMoneySnap(line).errors).toEqual([`第 1 行: 格式錯誤（${'😀'.repeat(20)}…）`]);
+      expect(parseMoneySnap(line).errors).toEqual([`第 1 行「${'😀'.repeat(20)}…」少了逗號`]);
     });
   });
 
@@ -116,7 +133,7 @@ describe('parseMoneySnap - edge cases', () => {
     it('should report success true with non-empty errors when some lines are valid', () => {
       const result = parseMoneySnap('張三,100\nbad\n李四,200');
       expect(result.success).toBe(true);
-      expect(result.errors).toEqual([FORMAT_ERROR(2, 'bad')]);
+      expect(result.errors).toEqual([COMMA_ERROR(2, 'bad')]);
       expect(result.total).toBe(300);
       expectInvariants(result);
     });
@@ -124,7 +141,7 @@ describe('parseMoneySnap - edge cases', () => {
     it('should report success false when every non-blank line is invalid', () => {
       const result = parseMoneySnap('bad\n\n張三,abc');
       expect(result.success).toBe(false);
-      expect(result.errors).toEqual([FORMAT_ERROR(1, 'bad'), FORMAT_ERROR(3, '張三,abc')]);
+      expect(result.errors).toEqual([COMMA_ERROR(1, 'bad'), AMOUNT_ERROR(3, '張三,abc')]);
       expectInvariants(result);
     });
   });
@@ -156,7 +173,7 @@ describe('parseMoneySnap - edge cases', () => {
     });
 
     it('should reject whitespace-only name', () => {
-      expectRejected('   ,100');
+      expectRejected('   ,100', 'name');
     });
 
     it('should strip CSV-style surrounding quotes from names and merge with unquoted names', () => {
@@ -176,8 +193,8 @@ describe('parseMoneySnap - edge cases', () => {
     });
 
     it('should reject a name that is empty after stripping quotes', () => {
-      expectRejected('"",100');
-      expectRejected('"  ",100');
+      expectRejected('"",100', 'name');
+      expectRejected('"  ",100', 'name');
     });
 
     it.each([
@@ -202,19 +219,19 @@ describe('parseMoneySnap - edge cases', () => {
 
     it('should NOT skip a header-like row that is not the first content line', () => {
       const result = parseMoneySnap('張三,100\n姓名,金額');
-      expect(result.errors).toEqual([FORMAT_ERROR(2, '姓名,金額')]);
+      expect(result.errors).toEqual([AMOUNT_ERROR(2, '姓名,金額')]);
       expect(result.entries).toHaveLength(1);
     });
 
     it('should only skip one header row', () => {
       const result = parseMoneySnap('姓名,金額\n姓名,金額\n張三,100');
-      expect(result.errors).toEqual([FORMAT_ERROR(2, '姓名,金額')]);
+      expect(result.errors).toEqual([AMOUNT_ERROR(2, '姓名,金額')]);
     });
 
     it('should NOT treat an unknown non-numeric first row as a header', () => {
       // Only known amount header words are skipped, so real data with a typo is still reported.
       const result = parseMoneySnap('張三,abc\n李四,100');
-      expect(result.errors).toEqual([FORMAT_ERROR(1, '張三,abc')]);
+      expect(result.errors).toEqual([AMOUNT_ERROR(1, '張三,abc')]);
     });
 
     it('should report header-only input as empty (no entries, no errors)', () => {
@@ -227,20 +244,21 @@ describe('parseMoneySnap - edge cases', () => {
 
   describe('Missing pieces', () => {
     it.each([
-      ['name with trailing delimiter only', '張三,'],
-      ['single comma', ','],
-      ['single fullwidth comma', '，'],
-      ['whitespace-only amount', '張三,   '],
-      ['NT$ only as amount', '張三,NT$'],
-      ['$ only as amount', '張三,$'],
-      ['empty double quotes', '張三,""'],
-      ['empty single quotes', "張三,''"],
-      ['sign only', '張三,+'],
-      ['no delimiter, name only', '張三'],
-      ['no delimiter, digits only', '100'],
-      ['space as separator', '張三 100']
-    ])('should reject %s', (_label, input) => {
-      expectRejected(input);
+      ['name with trailing delimiter only', '張三,', 'amount'],
+      ['single comma', ',', 'name'],
+      ['single fullwidth comma', '，', 'name'],
+      ['whitespace-only amount', '張三,   ', 'amount'],
+      ['NT$ only as amount', '張三,NT$', 'amount'],
+      ['$ only as amount', '張三,$', 'amount'],
+      ['empty double quotes', '張三,""', 'amount'],
+      ['empty single quotes', "張三,''", 'amount'],
+      ['sign only', '張三,+', 'amount'],
+      ['no delimiter, name only', '張三', 'comma'],
+      ['no delimiter, digits only', '100', 'comma'],
+      ['space as separator', '張三 100', 'comma'],
+      ['empty name and amount after a comma', ',abc', 'name']
+    ] as [string, string, RejectReason][])('should reject %s', (_label, input, reason) => {
+      expectRejected(input, reason);
     });
   });
 
@@ -458,6 +476,7 @@ describe('parseMoneySnap - edge cases', () => {
     });
 
     it('should reject when tab is the delimiter and the name side contains a comma', () => {
+      // An extra comma-separated column: read with the comma as delimiter, "三\t100" is not an amount.
       expectRejected('張,三\t100');
     });
 
@@ -499,12 +518,12 @@ describe('parseMoneySnap - edge cases', () => {
     it('should handle mixed CR, LF and CRLF with correct error line numbers', () => {
       const result = parseMoneySnap('張三,100\rbad\r\n李四,200\nbad2');
       expect(result.entries).toHaveLength(2);
-      expect(result.errors).toEqual([FORMAT_ERROR(2, 'bad'), FORMAT_ERROR(4, 'bad2')]);
+      expect(result.errors).toEqual([COMMA_ERROR(2, 'bad'), COMMA_ERROR(4, 'bad2')]);
     });
 
     it('should count consecutive CRs as blank lines', () => {
       const result = parseMoneySnap('張三,100\r\rbad');
-      expect(result.errors).toEqual([FORMAT_ERROR(3, 'bad')]);
+      expect(result.errors).toEqual([COMMA_ERROR(3, 'bad')]);
     });
   });
 
@@ -517,7 +536,7 @@ describe('parseMoneySnap - edge cases', () => {
       lines.splice(500, 0, 'bad', 'bad');
       const result = parseMoneySnap(lines.join('\n'));
       expect(result.entries).toHaveLength(1000);
-      expect(result.errors).toEqual([FORMAT_ERROR(501, 'bad'), FORMAT_ERROR(502, 'bad')]);
+      expect(result.errors).toEqual([COMMA_ERROR(501, 'bad'), COMMA_ERROR(502, 'bad')]);
       expect(result.errors).not.toContain(LIMIT_ERROR);
     });
 
@@ -543,13 +562,13 @@ describe('parseMoneySnap - edge cases', () => {
     it('should still report invalid lines between the 1000th entry and the next valid line', () => {
       const lines = [...validLines(1000), 'bad', 'extra,1', 'bad2'];
       const result = parseMoneySnap(lines.join('\n'));
-      expect(result.errors).toEqual([FORMAT_ERROR(1001, 'bad'), LIMIT_ERROR]);
+      expect(result.errors).toEqual([COMMA_ERROR(1001, 'bad'), LIMIT_ERROR]);
     });
 
     it('should not emit a limit error when only invalid lines follow 1000 entries', () => {
       const lines = [...validLines(1000), 'bad'];
       const result = parseMoneySnap(lines.join('\n'));
-      expect(result.errors).toEqual([FORMAT_ERROR(1001, 'bad')]);
+      expect(result.errors).toEqual([COMMA_ERROR(1001, 'bad')]);
     });
   });
 
@@ -567,7 +586,7 @@ describe('parseMoneySnap - edge cases', () => {
     it('should keep processing after an over-cap line (not stop)', () => {
       const result = parseMoneySnap('張三,5000000000\nbad\n王五,1');
       expect(result.entries).toEqual([{ name: '王五', amount: 1 }]);
-      expect(result.errors).toEqual([CAP_ERROR(1, '張三,5000000000'), FORMAT_ERROR(2, 'bad')]);
+      expect(result.errors).toEqual([CAP_ERROR(1, '張三,5000000000'), COMMA_ERROR(2, 'bad')]);
     });
 
     it('should reject a single over-cap entry with success=false', () => {
@@ -628,7 +647,7 @@ describe('parseMoneySnap - edge cases', () => {
     it('should treat a zero-width-only name as empty', () => {
       const result = parseMoneySnap('\u200B\u200B,100');
       expect(result.entries).toHaveLength(0);
-      expect(result.errors).toEqual([FORMAT_ERROR(1, ',100')]);
+      expect(result.errors).toEqual([NAME_MISSING_ERROR(1, ',100')]);
     });
 
     it('should treat a zero-width-only line as blank (no error, not counted)', () => {
@@ -638,7 +657,7 @@ describe('parseMoneySnap - edge cases', () => {
     });
 
     it('should show the cleaned content in error messages', () => {
-      expect(parseMoneySnap('b\u200Bad').errors).toEqual([FORMAT_ERROR(1, 'bad')]);
+      expect(parseMoneySnap('b\u200Bad').errors).toEqual([COMMA_ERROR(1, 'bad')]);
     });
 
     it('should not count zero-width characters toward the 20-character name limit', () => {
@@ -687,8 +706,7 @@ describe('parseMoneySnap - edge cases', () => {
   });
 
   describe('Name length (max 20 characters)', () => {
-    const NAME_ERROR = (line: number, content: string) =>
-      `第 ${line} 行: 姓名超過 20 字（${snippet(content)}）`;
+    const NAME_ERROR = (line: number, content: string) => LINE_ERROR(line, content, '姓名超過 20 字');
 
     it('should accept a name of exactly 20 characters', () => {
       const name = '張'.repeat(20);
@@ -712,15 +730,25 @@ describe('parseMoneySnap - edge cases', () => {
       expect(parseMoneySnap(`  "${name}"  ,100`).entries).toEqual([{ name, amount: 100 }]);
     });
 
-    it('should report a format error (not name length) when the amount is also invalid', () => {
+    it('should report the invalid amount (not name length) when the amount is also invalid', () => {
       const line = `${'張'.repeat(21)},abc`;
-      expect(parseMoneySnap(line).errors).toEqual([FORMAT_ERROR(1, line)]);
+      expect(parseMoneySnap(line).errors).toEqual([AMOUNT_ERROR(1, line)]);
+    });
+
+    it('should report the invalid amount (not name length) for a zero amount', () => {
+      const line = `${'張'.repeat(21)},0`;
+      expect(parseMoneySnap(line).errors).toEqual([AMOUNT_ERROR(1, line)]);
+    });
+
+    it('should report name length (not the amount cap) when both apply', () => {
+      const line = `${'張'.repeat(21)},1000000`;
+      expect(parseMoneySnap(line).errors).toEqual([NAME_ERROR(1, line)]);
     });
   });
 
   describe('Per-person aggregated cap (999,999)', () => {
     const NAME_CAP_ERROR = (line: number, name: string, content: string) =>
-      `第 ${line} 行: ${name} 合計金額超過上限 (999,999)（${snippet(content)}）`;
+      LINE_ERROR(line, content, `${name} 合計超過 999,999`);
 
     it('should accept a person whose aggregated total is exactly 999,999', () => {
       const result = parseMoneySnap('張三,500000\n張三,499999');
@@ -785,12 +813,66 @@ describe('parseMoneySnap - edge cases', () => {
 describe('calculateDenominations - edge cases', () => {
   const reconstruct = (d: Record<number, number>) =>
     Object.entries(d).reduce((s, [k, v]) => s + Number(k) * v, 0);
+  const nonZero = (d: Record<number, number>) =>
+    Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0));
 
-  it('should return exactly the seven NT$ denomination keys', () => {
-    const result = calculateDenominations(123);
-    expect(Object.keys(result.denominations).map(Number).sort((a, b) => b - a)).toEqual([
-      1000, 500, 100, 50, 10, 5, 1
-    ]);
+  describe('denomination sets', () => {
+    it('ALL_DENOMINATIONS lists the ten NT$ denominations, large → small', () => {
+      expect([...ALL_DENOMINATIONS]).toEqual([2000, 1000, 500, 200, 100, 50, 20, 10, 5, 1]);
+      expect(ALL_DENOMINATIONS.filter(isBill)).toEqual([2000, 1000, 500, 200, 100]);
+      expect(ALL_DENOMINATIONS.filter((d) => !isBill(d))).toEqual([50, 20, 10, 5, 1]);
+    });
+
+    it('DEFAULT_DENOMINATIONS is the common set (no 2000 / 200 / 20)', () => {
+      expect([...DEFAULT_DENOMINATIONS]).toEqual([1000, 500, 100, 50, 10, 5, 1]);
+      expect(DEFAULT_DENOMINATIONS.every((d) => (ALL_DENOMINATIONS as readonly number[]).includes(d))).toBe(true);
+    });
+
+    it('returns exactly the default keys when no set is given', () => {
+      const result = calculateDenominations(123);
+      expect(Object.keys(result.denominations).map(Number).sort((a, b) => b - a)).toEqual([1000, 500, 100, 50, 10, 5, 1]);
+    });
+
+    it('returns exactly the keys of a custom set', () => {
+      const result = calculateDenominations(123, ALL_DENOMINATIONS);
+      expect(Object.keys(result.denominations).map(Number).sort((a, b) => b - a)).toEqual([...ALL_DENOMINATIONS]);
+    });
+  });
+
+  it.each([
+    [2200, { 1000: 2, 100: 2 }],
+    [300, { 100: 3 }],
+    [3900, { 1000: 3, 500: 1, 100: 4 }],
+    [18500, { 1000: 18, 500: 1 }],
+    [40, { 10: 4 }]
+  ])('default set breaks down %i greedily', (amount, expected) => {
+    const result = calculateDenominations(amount);
+    expect(nonZero(result.denominations)).toEqual(Object.fromEntries(Object.entries(expected)));
+    expect(reconstruct(result.denominations)).toBe(amount);
+    expect(result.remainder).toBe(0);
+  });
+
+  it.each([
+    [2200, { 2000: 1, 200: 1 }],
+    [3900, { 2000: 1, 1000: 1, 500: 1, 200: 2 }],
+    [40, { 20: 2 }],
+    [75, { 50: 1, 20: 1, 5: 1 }],
+    [18500, { 2000: 9, 500: 1 }]
+  ])('full set (with 2000 / 200 / 20) breaks down %i greedily', (amount, expected) => {
+    const result = calculateDenominations(amount, ALL_DENOMINATIONS);
+    expect(nonZero(result.denominations)).toEqual(Object.fromEntries(Object.entries(expected)));
+    expect(reconstruct(result.denominations)).toBe(amount);
+  });
+
+  it('accepts a set in any order', () => {
+    const result = calculateDenominations(1550, [1, 50, 1000, 500]);
+    expect(nonZero(result.denominations)).toEqual({ 1000: 1, 500: 1, 50: 1 });
+  });
+
+  it('reports what cannot be made as remainder (e.g. NT$1 turned off)', () => {
+    const result = calculateDenominations(1003, [1000, 500, 100, 50, 10, 5]);
+    expect(nonZero(result.denominations)).toEqual({ 1000: 1 });
+    expect(result.remainder).toBe(3);
   });
 
   it('should echo the unfloored input amount', () => {
@@ -828,6 +910,7 @@ describe('calculateDenominations - edge cases', () => {
     const result = calculateDenominations(0.99);
     expect(reconstruct(result.denominations)).toBe(0);
     expect(Object.values(result.denominations).every(v => v === 0)).toBe(true);
+    expect(result.remainder).toBe(0);
   });
 
   it.each([
@@ -838,19 +921,13 @@ describe('calculateDenominations - edge cases', () => {
     const result = calculateDenominations(amount);
     expect(Object.values(result.denominations).every(v => v === 0)).toBe(true);
     expect(result.amount).toBe(amount);
+    expect(result.remainder).toBe(0);
   });
 
-  it('should return Infinity thousands and zeros elsewhere for Infinity input (no hang)', () => {
+  it('should not hang on Infinity input', () => {
     // NOTE: current behaviour — Infinity yields { 1000: Infinity } because Infinity % 1000 is NaN and later comparisons fail.
     const result = calculateDenominations(Infinity);
-    expect(result.denominations).toEqual({
-      1000: Infinity,
-      500: 0,
-      100: 0,
-      50: 0,
-      10: 0,
-      5: 0,
-      1: 0
-    });
+    expect(result.denominations).toEqual({ 1000: Infinity, 500: 0, 100: 0, 50: 0, 10: 0, 5: 0, 1: 0 });
+    expect(result.remainder).toBe(0);
   });
 });

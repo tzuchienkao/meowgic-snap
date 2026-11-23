@@ -19,7 +19,20 @@ export interface ParseResult {
 
 export const MAX_ENTRIES = 1000;
 export const MAX_AMOUNT_PER_ENTRY = 999999;
-export const DENOMINATIONS = [1000, 500, 100, 50, 10, 5, 1] as const;
+/** Every NT$ denomination the app supports, large → small (bills 2000–100, coins 50–1). */
+export const ALL_DENOMINATIONS = [2000, 1000, 500, 200, 100, 50, 20, 10, 5, 1] as const;
+
+/**
+ * Commonly used denominations, large → small. Used for every calculation until users can
+ * choose their own set in 偏好設定 (then pass that set to calculateDenominations).
+ */
+export const DEFAULT_DENOMINATIONS = [1000, 500, 100, 50, 10, 5, 1] as const;
+// Denominations at or above this value are bills (張); below it are coins (個).
+export const MIN_BILL_DENOMINATION = 100;
+
+export function isBill(denomination: number): boolean {
+  return denomination >= MIN_BILL_DENOMINATION;
+}
 
 // The number itself: plain digits, or digits with correctly grouped thousand separators.
 const NUMBER_CORE_PATTERN = /^(\d{1,3}([,，]\d{3})+|\d+)$/;
@@ -32,9 +45,33 @@ export const MAX_NAME_LENGTH = 20;
 const HEADER_AMOUNT_PATTERN = /^(金額|金额|amount)\s*([(（][^)）]*[)）])?$/i;
 const ERROR_SNIPPET_MAX = 20;
 
+type LineErrorReason =
+  | 'no_delimiter'
+  | 'name_missing'
+  | 'amount_invalid'
+  | 'amount_cap'
+  | 'name_too_long';
+
 type LineResult =
   | { ok: true; entry: ParsedEntry }
-  | { ok: false; reason: 'format' | 'amount_cap' | 'name_too_long' };
+  | { ok: false; reason: LineErrorReason };
+
+const formatNumber = (value: number) => value.toLocaleString('en-US');
+
+// Design system: state what happened, after the line content in 「」.
+const LINE_ERROR_TEXT: Record<LineErrorReason, string> = {
+  no_delimiter: '少了逗號',
+  name_missing: '少了姓名',
+  amount_invalid: '不是金額',
+  amount_cap: `金額超過 ${formatNumber(MAX_AMOUNT_PER_ENTRY)}`,
+  name_too_long: `姓名超過 ${MAX_NAME_LENGTH} 字`
+};
+
+export const ENTRY_LIMIT_ERROR = `太多了喵，算不動 (=ΦдΦ=)（最多 ${formatNumber(MAX_ENTRIES)} 筆）`;
+
+function lineError(lineNumber: number, line: string, reason: string): string {
+  return `第 ${lineNumber} 行「${snippet(line)}」${reason}`;
+}
 
 /**
  * Extract the amount.
@@ -149,34 +186,33 @@ function snippet(line: string): string {
     : line;
 }
 
+/**
+ * Precedence: no delimiter → missing name → invalid amount (incl. zero and a name that
+ * still holds a delimiter, i.e. an extra column) → name too long → amount over the cap.
+ */
 function parseLine(trimmed: string): LineResult {
-  const formatError: LineResult = { ok: false, reason: 'format' };
-
   const parts = splitLine(trimmed);
   if (!parts) {
-    return formatError;
+    return { ok: false, reason: 'no_delimiter' };
   }
 
   const { name, amountRaw } = parts;
-  const amountStr = extractAmount(amountRaw);
-
-  if (!name || !amountStr) {
-    return formatError;
+  if (!name) {
+    return { ok: false, reason: 'name_missing' };
   }
 
-  // Names cannot contain delimiters (possible when the tab is the delimiter)
-  if (name.includes(',') || name.includes('，') || name.includes('\t')) {
-    return formatError;
+  const amountStr = extractAmount(amountRaw);
+  const amount = amountStr ? Number(amountStr) : 0;
+
+  // Zero is not an amount for an exchange tool.
+  // A name that still contains a comma (possible when the tab is the delimiter) means the line
+  // has an extra column: read with the comma as delimiter, its amount side is not an amount.
+  if (!amountStr || amount <= 0 || name.includes(',') || name.includes('，') || name.includes('\t')) {
+    return { ok: false, reason: 'amount_invalid' };
   }
 
   if (Array.from(name).length > MAX_NAME_LENGTH) {
     return { ok: false, reason: 'name_too_long' };
-  }
-
-  const amount = Number(amountStr);
-
-  if (amount <= 0) {
-    return formatError;
   }
 
   if (amount > MAX_AMOUNT_PER_ENTRY) {
@@ -211,17 +247,12 @@ export function parseMoneySnap(input: string): ParseResult {
     const parsed = parseLine(trimmed);
 
     if (!parsed.ok) {
-      const reason = {
-        format: '格式錯誤',
-        amount_cap: `金額超過上限 (${MAX_AMOUNT_PER_ENTRY.toLocaleString('en-US')})`,
-        name_too_long: `姓名超過 ${MAX_NAME_LENGTH} 字`
-      }[parsed.reason];
-      errors.push(`第 ${i + 1} 行: ${reason}（${snippet(trimmed)}）`);
+      errors.push(lineError(i + 1, trimmed, LINE_ERROR_TEXT[parsed.reason]));
       continue;
     }
 
     if (entries.length >= MAX_ENTRIES) {
-      errors.push(`超過最大筆數限制 (${MAX_ENTRIES})`);
+      errors.push(ENTRY_LIMIT_ERROR);
       break;
     }
 
@@ -229,9 +260,7 @@ export function parseMoneySnap(input: string): ParseResult {
     const { name, amount } = parsed.entry;
     const nameTotal = (nameTotals.get(name) ?? 0) + amount;
     if (nameTotal > MAX_AMOUNT_PER_ENTRY) {
-      errors.push(
-        `第 ${i + 1} 行: ${name} 合計金額超過上限 (${MAX_AMOUNT_PER_ENTRY.toLocaleString('en-US')})（${snippet(trimmed)}）`
-      );
+      errors.push(lineError(i + 1, trimmed, `${name} 合計超過 ${formatNumber(MAX_AMOUNT_PER_ENTRY)}`));
       continue;
     }
 
@@ -252,32 +281,40 @@ export function parseMoneySnap(input: string): ParseResult {
 
 /**
  * Calculate denomination breakdown (台幣面額)
- * Bills: 1000, 500, 100, 50, 10, 5, 1 (NT$)
- * Coins: same as bills in this implementation
+ * Bills (張): 2000, 1000, 500, 200, 100
+ * Coins (個): 50, 10, 5, 1
  */
 export interface DenominationBreakdown {
   amount: number;
   denominations: {
     [key: number]: number;
   };
+  /** Amount that could not be made with the given denominations (0 when NT$1 is included) */
+  remainder: number;
 }
 
-export function calculateDenominations(amount: number): DenominationBreakdown {
+export function calculateDenominations(
+  amount: number,
+  available: readonly number[] = DEFAULT_DENOMINATIONS
+): DenominationBreakdown {
+  // Greedy from the largest note; sort a copy so any order of `available` works.
+  const ordered = [...available].sort((a, b) => b - a);
   const denominations: { [key: number]: number } = Object.fromEntries(
-    DENOMINATIONS.map((denom) => [denom, 0])
+    ordered.map((denom) => [denom, 0])
   );
-  
+
   let remaining = Math.floor(amount);
-  
-  for (const denom of DENOMINATIONS) {
+
+  for (const denom of ordered) {
     if (remaining >= denom) {
       denominations[denom] = Math.floor(remaining / denom);
       remaining = remaining % denom;
     }
   }
-  
+
   return {
     amount,
-    denominations
+    denominations,
+    remainder: Number.isFinite(remaining) && remaining > 0 ? remaining : 0
   };
 }
