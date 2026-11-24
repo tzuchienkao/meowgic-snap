@@ -17,14 +17,23 @@ export interface ParseResult {
   totalNames: number;
 }
 
+/**
+ * Parse options.
+ * includesNames (default true): each line is 「姓名,金額」. When false (偏好設定「純金額」),
+ * each line is a single amount and the entries are named 「第 N 筆」, so they never merge.
+ */
+export interface ParseOptions {
+  includesNames?: boolean;
+}
+
 export const MAX_ENTRIES = 1000;
 export const MAX_AMOUNT_PER_ENTRY = 999999;
 /** Every NT$ denomination the app supports, large → small (bills 2000–100, coins 50–1). */
 export const ALL_DENOMINATIONS = [2000, 1000, 500, 200, 100, 50, 20, 10, 5, 1] as const;
 
 /**
- * Commonly used denominations, large → small. Used for every calculation until users can
- * choose their own set in 偏好設定 (then pass that set to calculateDenominations).
+ * Commonly used denominations, large → small. The default set in 偏好設定
+ * (see utils/preferences.ts); the home page passes the user's set to calculateDenominations.
  */
 export const DEFAULT_DENOMINATIONS = [1000, 500, 100, 50, 10, 5, 1] as const;
 // Denominations at or above this value are bills (張); below it are coins (個).
@@ -165,18 +174,44 @@ function splitInputLines(input: string): string[] {
     .split('\n');
 }
 
+/** Amount-only header row: just the amount column title, e.g. "金額" / "金額(元)". */
+function isAmountHeaderLine(trimmed: string): boolean {
+  return HEADER_AMOUNT_PATTERN.test(cleanName(trimmed));
+}
+
+/** Name given to each entry in amount-only mode (N = entry order, 1-based). */
+export function amountOnlyEntryName(order: number): string {
+  return `第 ${order} 筆`;
+}
+
+export interface EntryLines {
+  /** Header row (first non-blank line), when there is one */
+  header: string | null;
+  /** Non-blank entry lines (trimmed), header excluded */
+  lines: string[];
+}
+
+/**
+ * Split input into its header row and entry lines (non-blank, trimmed),
+ * e.g. to calculate only the first MAX_ENTRIES lines and keep the rest for later.
+ */
+export function splitEntryLines(input: string, { includesNames = true }: ParseOptions = {}): EntryLines {
+  const contentLines = splitInputLines(input)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const isHeader = includesNames ? isHeaderLine : isAmountHeaderLine;
+  if (contentLines.length && isHeader(contentLines[0]!)) {
+    return { header: contentLines[0]!, lines: contentLines.slice(1) };
+  }
+  return { header: null, lines: contentLines };
+}
+
 /**
  * Number of lines that count as entries for the "已貼 N 筆" counter:
  * non-blank lines, excluding a header row on the first non-blank line.
  */
-export function countEntryLines(input: string): number {
-  const contentLines = splitInputLines(input)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (contentLines.length && isHeaderLine(contentLines[0]!)) {
-    return contentLines.length - 1;
-  }
-  return contentLines.length;
+export function countEntryLines(input: string, options: ParseOptions = {}): number {
+  return splitEntryLines(input, options).lines.length;
 }
 
 function snippet(line: string): string {
@@ -223,9 +258,70 @@ function parseLine(trimmed: string): LineResult {
 }
 
 /**
- * Parse money snap input
+ * Amount-only line: the whole line is one amount, read with the same rules as the amount column.
+ * A tab (another column) is never part of an amount.
  */
-export function parseMoneySnap(input: string): ParseResult {
+function parseAmountOnlyLine(trimmed: string): { ok: true; amount: number } | { ok: false; reason: LineErrorReason } {
+  const amountStr = trimmed.includes('\t') ? null : extractAmount(trimmed);
+  const amount = amountStr ? Number(amountStr) : 0;
+  if (!amountStr || amount <= 0) {
+    return { ok: false, reason: 'amount_invalid' };
+  }
+  if (amount > MAX_AMOUNT_PER_ENTRY) {
+    return { ok: false, reason: 'amount_cap' };
+  }
+  return { ok: true, amount };
+}
+
+function parseAmountOnly(input: string): ParseResult {
+  const lines = splitInputLines(input);
+  const entries: ParsedEntry[] = [];
+  const errors: string[] = [];
+  let totalAmount = 0;
+  let isFirstContentLine = true;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i]!.trim();
+    if (!trimmed) continue;
+
+    if (isFirstContentLine) {
+      isFirstContentLine = false;
+      if (isAmountHeaderLine(trimmed)) continue;
+    }
+
+    const parsed = parseAmountOnlyLine(trimmed);
+    if (!parsed.ok) {
+      errors.push(lineError(i + 1, trimmed, LINE_ERROR_TEXT[parsed.reason]));
+      continue;
+    }
+
+    if (entries.length >= MAX_ENTRIES) {
+      errors.push(ENTRY_LIMIT_ERROR);
+      break;
+    }
+
+    entries.push({ name: amountOnlyEntryName(entries.length + 1), amount: parsed.amount });
+    totalAmount += parsed.amount;
+  }
+
+  return {
+    success: entries.length > 0,
+    entries,
+    errors,
+    total: totalAmount,
+    totalEntries: entries.length,
+    // Every entry has its own name
+    totalNames: entries.length
+  };
+}
+
+/**
+ * Parse money snap input.
+ * Pass `{ includesNames: false }` for amount-only input (one amount per line).
+ */
+export function parseMoneySnap(input: string, { includesNames = true }: ParseOptions = {}): ParseResult {
+  if (!includesNames) return parseAmountOnly(input);
+
   const lines = splitInputLines(input);
   const entries: ParsedEntry[] = [];
   const errors: string[] = [];
