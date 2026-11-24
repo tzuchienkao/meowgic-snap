@@ -12,6 +12,7 @@ import { EMAIL_ERRORS } from '../../utils/validators';
 // Layout shells: just render their slots
 const DesktopWrapper = defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) });
 const AppHeader = defineComponent({ setup: (_, { slots }) => () => h('header', [slots.header?.(), slots.menu?.()]) });
+const AppPreferencesDrawer = defineComponent({ setup: () => () => h('div', { class: 'drawer-stub' }) });
 
 let isShowModal: Ref<boolean>;
 let closeModal: ReturnType<typeof vi.fn>;
@@ -22,7 +23,7 @@ const mountLanding = () => {
   wrapper = mount(Landing, {
     attachTo: document.body,
     global: {
-      components: { AppButton, AppInput, AppDialog, AppIconButton, AppCatEarCard, DesktopWrapper, AppHeader }
+      components: { AppButton, AppInput, AppDialog, AppIconButton, AppCatEarCard, DesktopWrapper, AppHeader, AppPreferencesDrawer }
     }
   });
   return wrapper;
@@ -115,5 +116,12 @@ describe('login dialog — email validation', () => {
     isShowModal.value = true;
     await flushPromises();
     expect(hint(w).exists()).toBe(false);
+  });
+});
+
+describe('guest layout — 偏好設定 drawer', () => {
+  it('renders the guest 偏好設定 drawer (left-edge tab)', () => {
+    const w = mountLanding();
+    expect(w.find('.drawer-stub').exists()).toBe(true);
   });
 });

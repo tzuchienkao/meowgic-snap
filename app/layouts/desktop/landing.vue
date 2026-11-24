@@ -15,6 +15,8 @@
     <main>
       <slot />
     </main>
+    <!-- Guest 偏好設定: tab on the left edge + floating panel (members use the settings page) -->
+    <app-preferences-drawer />
     <app-dialog
       :open="isShowModal"
       :title="model.title"

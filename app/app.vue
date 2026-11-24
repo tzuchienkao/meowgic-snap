@@ -14,11 +14,13 @@ import { useAgent } from '~/composables/useAgent.ts'
 import { useTheme } from "~/composables/useTheme.ts";
 import { useAuth } from "~/composables/useAuth.ts";
 import { useToast } from "~/composables/useToast.ts";
+import { usePreferences } from "~/composables/usePreferences";
 
 const { agentMode, setAgentMode, initAgentMode, cleanupAgentMode } = useAgent();
 const { theme, loadSavedTheme } = useTheme();
 const { user, initAuth } = useAuth();
 const { toastMessage, isToastVisible } = useToast();
+const { loadPreferences } = usePreferences();
 
 const isAuthReady = ref(false)
 
@@ -29,6 +31,8 @@ onMounted(async () => {
   loadSavedTheme();
   initAgentMode();
   await initAuth();
+  // Auth state is known now: load the guest's and (when signed in) the member's 偏好設定
+  await loadPreferences();
   setAgentMode();
   isAuthReady.value = true;
 });
