@@ -6,6 +6,7 @@ import DenomBadge from '../../components/app/DenomBadge/DenomBadge.vue';
 import ActionTile from '../../components/app/ActionTile/ActionTile.vue';
 import CatEarCard from '../../components/app/CatEarCard/CatEarCard.vue';
 import Chip from '../../components/app/Chip/Chip.vue';
+import { DenomCellState, DenomKind } from '../../types/denomination';
 
 describe('TotalCard (design system)', () => {
   const global = { components: { AppCatEarCard: CatEarCard, AppChip: Chip } };
@@ -58,7 +59,7 @@ describe('DenomBadge (design system)', () => {
   });
 
   it('kind overrides the inferred type', () => {
-    expect(mount(DenomBadge, { props: { value: 50, count: 2, kind: 'bill' } }).text()).toBe('NT$50 2 張');
+    expect(mount(DenomBadge, { props: { value: 50, count: 2, kind: DenomKind.Bill } }).text()).toBe('NT$50 2 張');
   });
 
   it('never renders ×N', () => {
@@ -87,7 +88,7 @@ describe('DenomCell (design system)', () => {
   });
 
   it('explicit top state (most-used bill)', () => {
-    expect(mount(DenomCell, { props: { value: 2000, count: 214, state: 'top' } }).classes()).toContain('app-denom-cell--top');
+    expect(mount(DenomCell, { props: { value: 2000, count: 214, state: DenomCellState.Top } }).classes()).toContain('app-denom-cell--top');
   });
 
   it('formats large counts with separators', () => {
@@ -101,7 +102,7 @@ describe('DenomCell (design system)', () => {
   });
 
   it('coins never show a unit and support the zero state', () => {
-    const coin = mount(DenomCell, { props: { kind: 'coin', value: 5, count: 0 } });
+    const coin = mount(DenomCell, { props: { kind: DenomKind.Coin, value: 5, count: 0 } });
     expect(coin.classes()).toEqual(expect.arrayContaining(['app-denom-cell--coin', 'app-denom-cell--zero']));
     expect(coin.find('.app-denom-cell__value').text()).toBe('NT$5');
     expect(coin.find('.app-denom-cell__unit').exists()).toBe(false);

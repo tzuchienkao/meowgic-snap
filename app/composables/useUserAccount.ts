@@ -1,4 +1,6 @@
 import { computed } from 'vue';
+import { RouteName } from '~/constants/navigation';
+import { DEFAULT_DISPLAY_NAME } from '~/constants/user';
 
 /**
  * Account info and actions shared by the desktop user menu and the mobile ☰ panel,
@@ -8,10 +10,10 @@ export const useUserAccount = () => {
   const { user, logout } = useAuth();
   const router = useRouter();
 
-  const userName = computed(() => user.value?.display_name || '喵奴才');
+  const userName = computed(() => user.value?.display_name || DEFAULT_DISPLAY_NAME);
   const userEmail = computed(() => user.value?.email || '');
 
-  const goToSettings = () => router.push({ name: 'settings' });
+  const goToSettings = () => router.push({ name: RouteName.Settings });
 
   const onLogout = () => logout();
 

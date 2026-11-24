@@ -1,5 +1,5 @@
 <template>
-  <span class="app-denom-badge" :class="[`app-denom-badge--${size}`, onSurface ? 'app-denom-badge--on-surface' : 'app-denom-badge--on-soft']"><span class="app-denom-badge__value">NT${{ formatted(value) }}</span> <span class="app-denom-badge__count" :class="`app-denom-badge__count--${resolvedKind}`">{{ formatted(count) }} <span class="app-denom-badge__unit">{{ resolvedKind === 'bill' ? '張' : '個' }}</span></span></span>
+  <span class="app-denom-badge" :class="[`app-denom-badge--${size}`, onSurface ? 'app-denom-badge--on-surface' : 'app-denom-badge--on-soft']"><span class="app-denom-badge__value">{{ CURRENCY_PREFIX }}{{ formatted(value) }}</span> <span class="app-denom-badge__count" :class="`app-denom-badge__count--${resolvedKind}`">{{ formatted(count) }} <span class="app-denom-badge__unit">{{ resolvedKind === DenomKind.Bill ? CurrencyUnit.Bill : CurrencyUnit.Coin }}</span></span></span>
 </template>
 
 <script setup lang="ts">
@@ -9,6 +9,8 @@
  * size: sm (每筆明細) · md (這次要準備的現金). onSurface: white pill (inside soft rows) or soft pill (inside white cards).
  */
 import { computed } from 'vue';
+import { CURRENCY_PREFIX, CurrencyUnit } from '~/constants/currency';
+import { DenomKind } from '~/types/denomination';
 import { isBill } from '~/utils/moneyParser';
 
 const {
@@ -21,12 +23,12 @@ const {
   value: number;
   count: number;
   /** Inferred from value (>= 100 → bill) when omitted */
-  kind?: 'bill' | 'coin';
+  kind?: DenomKind;
   size?: 'sm' | 'md';
   onSurface?: boolean;
 }>();
 
-const resolvedKind = computed(() => kind ?? (isBill(value) ? 'bill' : 'coin'));
+const resolvedKind = computed(() => kind ?? (isBill(value) ? DenomKind.Bill : DenomKind.Coin));
 const formatted = (n: number) => n.toLocaleString('en-US');
 </script>
 

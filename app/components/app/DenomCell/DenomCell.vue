@@ -1,8 +1,8 @@
 <template>
   <div class="app-denom-cell" :class="[`app-denom-cell--${kind}`, `app-denom-cell--${resolvedState}`, { 'app-denom-cell--compact': compact }]">
-    <span class="app-denom-cell__value">NT${{ formatted(value) }}</span>
+    <span class="app-denom-cell__value">{{ CURRENCY_PREFIX }}{{ formatted(value) }}</span>
     <span class="app-denom-cell__count">{{ formatted(count) }}</span>
-    <span v-if="kind === 'bill' && !compact" class="app-denom-cell__unit">張</span>
+    <span v-if="kind === DenomKind.Bill && !compact" class="app-denom-cell__unit">{{ CurrencyUnit.Bill }}</span>
   </div>
 </template>
 
@@ -13,22 +13,24 @@
  * (defaults from count). compact = dashboard size (no 張).
  */
 import { computed } from 'vue';
+import { CURRENCY_PREFIX, CurrencyUnit } from '~/constants/currency';
+import { DenomCellState, DenomKind } from '~/types/denomination';
 
 const {
-  kind = 'bill',
+  kind = DenomKind.Bill,
   value,
   count,
   state,
   compact = false
 } = defineProps<{
-  kind?: 'bill' | 'coin';
+  kind?: DenomKind;
   value: number;
   count: number;
-  state?: 'top' | 'has' | 'zero';
+  state?: DenomCellState;
   compact?: boolean;
 }>();
 
-const resolvedState = computed(() => state ?? (count > 0 ? 'has' : 'zero'));
+const resolvedState = computed(() => state ?? (count > 0 ? DenomCellState.Has : DenomCellState.Zero));
 const formatted = (n: number) => n.toLocaleString('en-US');
 </script>
 

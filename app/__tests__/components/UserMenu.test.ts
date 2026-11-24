@@ -4,6 +4,8 @@ import { nextTick, ref, type Ref } from 'vue';
 import UserMenu from '../../components/app/UserMenu/UserMenu.vue';
 import Button from '../../components/app/Button/Button.vue';
 import { useUserAccount } from '../../composables/useUserAccount';
+import { RouteName } from '../../constants/navigation';
+import { DEFAULT_DISPLAY_NAME } from '../../constants/user';
 
 let userRef: Ref<Record<string, string> | null>;
 let logout: ReturnType<typeof vi.fn>;
@@ -38,7 +40,7 @@ describe('useUserAccount', () => {
     userRef.value = { id: 'u2', email: 'a@b.test', display_name: '小黑' };
     expect(userName.value).toBe('小黑');
     userRef.value = { id: 'u3', email: 'c@d.test' };
-    expect(userName.value).toBe('喵奴才');
+    expect(userName.value).toBe(DEFAULT_DISPLAY_NAME);
     userRef.value = null;
     expect(userEmail.value).toBe('');
   });
@@ -47,7 +49,7 @@ describe('useUserAccount', () => {
     const { goToSettings, onLogout } = useUserAccount();
     goToSettings();
     onLogout();
-    expect(push).toHaveBeenCalledWith({ name: 'settings' });
+    expect(push).toHaveBeenCalledWith({ name: RouteName.Settings });
     expect(logout).toHaveBeenCalledTimes(1);
   });
 });
@@ -75,7 +77,7 @@ describe('UserMenu', () => {
     const w = mountMenu();
     await trigger(w).trigger('click');
     await w.findAll('[role="menuitem"]')[0]!.trigger('click');
-    expect(push).toHaveBeenCalledWith({ name: 'settings' });
+    expect(push).toHaveBeenCalledWith({ name: RouteName.Settings });
     expect(w.find('[role="menu"]').exists()).toBe(false);
   });
 

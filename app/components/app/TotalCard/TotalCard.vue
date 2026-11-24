@@ -22,10 +22,12 @@
  * and meta chips. The heaviest element on a screen (only one per screen with the orange CTA).
  * size: md 36px inline (home) · lg 44px stacked (dashboard 累計).
  */
+import { CurrencyUnit } from '~/constants/currency';
+
 const {
   label = '總金額',
   amount,
-  unit = '元',
+  unit = CurrencyUnit.Dollar,
   chips = [],
   size = 'md'
 } = defineProps<{
