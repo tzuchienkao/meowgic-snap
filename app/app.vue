@@ -2,16 +2,23 @@
   <NuxtLayout :name="layout">
     <NuxtPage />
   </NuxtLayout>
+  <!-- Always-present live region so screen readers announce every toast; the visible pill is hidden from them -->
+  <div class="sr-only" role="status" aria-live="polite">{{ isToastVisible ? toastMessage : '' }}</div>
+  <Transition name="toast">
+    <app-toast v-if="isToastVisible" fixed aria-hidden="true">{{ toastMessage }}</app-toast>
+  </Transition>
 </template>
 
 <script setup lang="ts">
 import { useAgent } from '~/composables/useAgent.ts'
 import { useTheme } from "~/composables/useTheme.ts";
 import { useAuth } from "~/composables/useAuth.ts";
+import { useToast } from "~/composables/useToast.ts";
 
 const { agentMode, setAgentMode, initAgentMode, cleanupAgentMode } = useAgent();
 const { theme, loadSavedTheme } = useTheme();
 const { user, initAuth } = useAuth();
+const { toastMessage, isToastVisible } = useToast();
 
 const isAuthReady = ref(false)
 
@@ -40,4 +47,12 @@ const layout = computed(() => {
 </script>
 
 <style>
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 0.2s;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+}
 </style>

@@ -3,7 +3,7 @@
     type="button"
     role="checkbox"
     class="app-checkbox"
-    :class="[`app-checkbox--${size}`, `app-checkbox--${labelFont}`, { 'is-checked': modelValue }]"
+    :class="[`app-checkbox--${size}`, `app-checkbox--${labelFont}`, { 'is-checked': modelValue, 'app-checkbox--note-below': noteBelow }]"
     :aria-checked="modelValue"
     :disabled="disabled"
     @click="onClick"
@@ -27,6 +27,7 @@ const {
   note = '',
   size = 'md',
   labelFont = 'round',
+  noteBelow = false,
   disabled = false
 } = defineProps<{
   modelValue?: boolean;
@@ -35,6 +36,8 @@ const {
   note?: string;
   size?: 'md' | 'sm';
   labelFont?: 'round' | 'sans';
+  /** Put the note on its own line under the label (guest 偏好設定 drawer) */
+  noteBelow?: boolean;
   disabled?: boolean;
 }>();
 
@@ -71,6 +74,10 @@ const onClick = () => {
   .app-checkbox--sans .app-checkbox__label { @apply text-base font-medium; }
 
   .app-checkbox__note { @apply text-xs text-muted; }
+
+  /* Note under the label: box in the first column spanning both lines */
+  .app-checkbox--note-below { @apply grid grid-cols-[auto_1fr] items-start gap-y-0; }
+  .app-checkbox--note-below .app-checkbox__box { @apply row-span-2; }
 
   .app-checkbox:disabled { @apply cursor-not-allowed; }
   .app-checkbox:disabled .app-checkbox__box { @apply bg-soft border-line-checkbox; }

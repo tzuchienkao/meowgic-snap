@@ -45,6 +45,13 @@ describe('Checkbox (design system)', () => {
     expect(w.find('.app-checkbox__note').text()).toBe('（建議保留）');
   });
 
+  it('noteBelow puts the note on its own line (modifier class), off by default', () => {
+    const below = mount(Checkbox, { props: { label: '資料包含姓名和金額', note: '（取消勾選只支援純金額）', noteBelow: true } });
+    expect(below.find('button').classes()).toContain('app-checkbox--note-below');
+    expect(below.find('.app-checkbox__note').text()).toBe('（取消勾選只支援純金額）');
+    expect(mount(Checkbox, { props: { label: 'x', note: 'y' } }).find('button').classes()).not.toContain('app-checkbox--note-below');
+  });
+
   it('accepts slot content as the label', () => {
     const w = mount(Checkbox, { slots: { default: '資料包含<b>姓名</b>和金額' } });
     expect(w.find('.app-checkbox__label').text()).toBe('資料包含姓名和金額');

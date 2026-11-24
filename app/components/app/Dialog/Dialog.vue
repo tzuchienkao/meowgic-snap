@@ -36,7 +36,8 @@
  * - Focus moves into the dialog on open, Tab stays inside, and focus returns on close.
  * Extra (not in DS): `closable` shows a × IconButton in the top-right corner.
  */
-import { nextTick, useId } from 'vue';
+import { useId } from 'vue';
+import { useFocusTrap } from '~/composables/useFocusTrap';
 import AppCatEarCard from '~/components/app/CatEarCard/CatEarCard.vue';
 
 const {
@@ -62,60 +63,12 @@ const {
 const emit = defineEmits<{ close: [] }>();
 
 const titleId = useId();
-let panel: HTMLElement | null = null;
-let previouslyFocused: HTMLElement | null = null;
-
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
-
-/**
- * Focus management without a watcher: Vue calls this (stable) function ref with the panel
- * element when the dialog is rendered (open) and with null when it is removed (closed, or the
- * component unmounts).
- */
-const onPanelRef = (el: unknown) => {
-  if (el instanceof HTMLElement) {
-    if (panel === el) return;
-    panel = el;
-    previouslyFocused = document.activeElement as HTMLElement | null;
-    // Wait until the whole dialog is attached to the document before moving focus.
-    nextTick(() => {
-      const firstField = el.querySelector<HTMLElement>('input:not([disabled]), textarea:not([disabled])');
-      (firstField ?? el).focus();
-    });
-  } else if (panel) {
-    panel = null;
-    previouslyFocused?.focus?.();
-    previouslyFocused = null;
-  }
-};
+const { onPanelRef, onKeydown } = useFocusTrap(() => emit('close'));
 
 const onScrimClick = () => {
   if (!persistent) emit('close');
 };
 
-const onKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') {
-    event.stopPropagation();
-    emit('close');
-    return;
-  }
-  if (event.key !== 'Tab') return;
-  const items = focusables();
-  if (!items.length) {
-    event.preventDefault();
-    return;
-  }
-  const first = items[0]!;
-  const last = items[items.length - 1]!;
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
-};
 </script>
 
 <style>
@@ -130,7 +83,8 @@ const onKeydown = (event: KeyboardEvent) => {
   .app-dialog__scrim { @apply absolute inset-0 bg-scrim; }
   .app-dialog__scrim--strong { @apply bg-scrim-strong; }
 
-  .app-dialog__panel { @apply relative outline-none; width: min(var(--dialog-width), 100%); }
+  /* Tall content (e.g. 偏好設定) scrolls inside the panel instead of overflowing the viewport */
+  .app-dialog__panel { @apply relative max-h-full overflow-y-auto outline-none; width: min(var(--dialog-width), 100%); }
   .app-dialog__card { @apply rounded-dialog bg-surface p-6 text-ink; }
 
   .app-dialog__body { @apply relative flex flex-col gap-4; }
