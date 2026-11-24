@@ -11,6 +11,9 @@ import AppTotalCard from '../../components/app/TotalCard/TotalCard.vue';
 import AppDenomBadge from '../../components/app/DenomBadge/DenomBadge.vue';
 import AppDenomCell from '../../components/app/DenomCell/DenomCell.vue';
 import AppActionTile from '../../components/app/ActionTile/ActionTile.vue';
+import AppDialog from '../../components/app/Dialog/Dialog.vue';
+import AppCheckbox from '../../components/app/Checkbox/Checkbox.vue';
+import AppPreferencesForm from '../../components/app/PreferencesForm/PreferencesForm.vue';
 import IndexPage from '../../pages/index.vue';
 
 // Simple pass-through stub for app-cat-ear-card exposing its tone prop
@@ -35,11 +38,17 @@ const AppCatEarCardStub = defineComponent({
 const PLACEHOLDER = '算好的結果會出現在這裡喵';
 const PLACEHOLDER_CAPTION = '貓咪插畫：橘白貓趴著等';
 const ERROR_TITLE = '喵？有幾行看不懂 (ΦдΦ)';
-const LIMIT_ERROR = '太多了喵，算不動 (=ΦдΦ=)（最多 1,000 筆）';
 
 let userRef: Ref<unknown>;
 let themeRef: Ref<'light' | 'dark'>;
 let navigateToMock: ReturnType<typeof vi.fn>;
+let showToastMock: ReturnType<typeof vi.fn>;
+// Minimal stand-in for Nuxt's useState (usePreferences keeps its cache there)
+let stateStore: Record<string, Ref<unknown>>;
+const useStateStub = <T>(key: string, init: () => T) => {
+  if (!stateStore[key]) stateStore[key] = ref(init());
+  return stateStore[key] as Ref<T>;
+};
 
 const mountPage = () =>
   mount(IndexPage, {
@@ -55,6 +64,9 @@ const mountPage = () =>
         AppDenomBadge,
         AppDenomCell,
         AppActionTile,
+        AppDialog,
+        AppCheckbox,
+        AppPreferencesForm,
         AppCatEarCard: AppCatEarCardStub,
       },
     },
@@ -99,12 +111,17 @@ const lines = (n: number) =>
   Array.from({ length: n }, (_, i) => `name${i},1`).join('\n');
 
 beforeEach(() => {
+  stateStore = {};
+  localStorage.clear();
+  vi.stubGlobal('useState', useStateStub);
   userRef = ref(null);
   themeRef = ref('light');
   navigateToMock = vi.fn(() => Promise.resolve());
   vi.stubGlobal('useAuth', () => ({ user: userRef }));
   vi.stubGlobal('useTheme', () => ({ theme: themeRef }));
   vi.stubGlobal('navigateTo', navigateToMock);
+  showToastMock = vi.fn();
+  vi.stubGlobal('useToast', () => ({ showToast: showToastMock }));
 });
 
 afterEach(() => {
@@ -168,20 +185,12 @@ describe('pages/index.vue', () => {
       expect(findButton(wrapper, '直接計算')!.attributes('disabled')).toBeUndefined();
     });
 
-    it('1001 lines → counter may exceed 1,000, button stays enabled, parser rejects with limit error', async () => {
+    it('1001 lines → counter may exceed 1,000 and the button stays enabled', async () => {
       const wrapper = mountPage();
       await wrapper.find('textarea').setValue(lines(1001));
 
       expect(counterText(wrapper)).toBe('已貼 1001 / 1,000 筆');
-      const btn = findButton(wrapper, '直接計算')!;
-      expect(btn.attributes('disabled')).toBeUndefined();
-
-      await btn.trigger('click');
-      await flushPromises();
-      expect(errorItems(wrapper)).toEqual([LIMIT_ERROR]);
-      // The entry-limit message is not a line error, so no "看不懂" title
-      expect(errorTitle(wrapper).exists()).toBe(false);
-      expectNotCalculated(wrapper);
+      expect(findButton(wrapper, '直接計算')!.attributes('disabled')).toBeUndefined();
     });
 
     it('counter ignores blank lines in the middle', async () => {
@@ -360,19 +369,6 @@ describe('pages/index.vue', () => {
       expect(items.every((e) => e.startsWith('第 '))).toBe(true);
       expect(items.some((e) => e.includes('還有'))).toBe(false);
       expect(wrapper.find('.money-snap__errors-more').exists()).toBe(false);
-    });
-
-    it('line errors before the entry limit are capped at 5 and the limit message is shown as-is', async () => {
-      const wrapper = mountPage();
-      const input = [...Array.from({ length: 7 }, (_, i) => `bad${i}`), lines(1001)].join('\n');
-      await typeAndCalculate(wrapper, input, '直接計算');
-
-      expect(errorTitle(wrapper).text()).toBe(ERROR_TITLE);
-      const items = errorItems(wrapper);
-      expect(items.slice(0, 5)).toEqual(Array.from({ length: 5 }, (_, i) => `第 ${i + 1} 行「bad${i}」少了逗號`));
-      expect(items).toContain(LIMIT_ERROR);
-      expect(items).toContain('還有 2 行也看不懂');
-      expect(items).toHaveLength(7);
     });
 
     it('error line numbers count blank lines', async () => {
@@ -592,7 +588,7 @@ describe('pages/index.vue', () => {
   });
 
   describe('guest login prompt', () => {
-    it('shows calculate + 登入存檔 buttons (no separate login prompt) and no current-settings button', () => {
+    it('shows calculate + 登入存檔 buttons and no current-settings pill (guests use the left-edge 偏好設定 tab)', () => {
       const wrapper = mountPage();
       expect(wrapper.find('.login-prompt').exists()).toBe(false);
       const actions = wrapper.find('.action-buttons').findAll('button').map((b) => b.text());
@@ -696,10 +692,170 @@ describe('pages/index.vue', () => {
       expect(wrapper.find('.result-area__details .summary-card__row').exists()).toBe(true);
     });
 
-    it('hides the export ActionTiles until those features exist', async () => {
+    it('shows the three enabled export ActionTiles between the total card and the denominations', async () => {
       const wrapper = mountPage();
       await typeAndCalculate(wrapper, '張三,100', '直接計算');
-      expect(wrapper.find('.app-action-tile').exists()).toBe(false);
+      const tiles = wrapper.findAll('.result-area__actions .app-action-tile');
+      expect(tiles.map((t) => t.text())).toEqual(['⧉複製領款單', '▣下載明細圖', '↓匯出 CSV']);
+      tiles.forEach((t) => expect(t.attributes('disabled')).toBeUndefined());
+      const order = wrapper.findAll('.result-area > *').map((el) => el.classes());
+      expect(order[0]).toContain('summary-card');
+      expect(order[1]).toContain('result-area__actions');
+      expect(order[2]).toContain('result-area__denoms');
+    });
+
+    describe('export actions', () => {
+      const INPUT = '張三,18500\n李四,3888\n張三,1999';
+      const SLIP_TEXT =
+        '領款總額：24,387元\n' +
+        '【紙鈔】1,000元 23張 / 500元 1張 / 100元 7張\n' +
+        '【硬幣】50元 2個 / 10元 7個 / 5元 2個 / 1元 7個';
+      const CSV =
+        '\uFEFF姓名,金額,NT$1000,NT$500,NT$100,NT$50,NT$10,NT$5,NT$1\r\n' +
+        '張三,20499,20,0,4,1,4,1,4\r\n' +
+        '李四,3888,3,1,3,1,3,1,3\r\n' +
+        '合計,24387,23,1,7,2,7,2,7';
+
+      let createObjectURL: ReturnType<typeof vi.fn>;
+      let revokeObjectURL: ReturnType<typeof vi.fn>;
+      let clickSpy: ReturnType<typeof vi.spyOn>;
+      let downloadNames: string[];
+      let originalUrlFns: Pick<typeof URL, 'createObjectURL' | 'revokeObjectURL'>;
+
+      const clickTile = async (wrapper: VueWrapper, label: string) => {
+        const tile = wrapper.findAll('.app-action-tile').find((t) => t.text().includes(label));
+        expect(tile).toBeDefined();
+        await tile!.trigger('click');
+        await flushPromises();
+      };
+
+      beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        createObjectURL = vi.fn(() => 'blob:mock');
+        revokeObjectURL = vi.fn();
+        originalUrlFns = { createObjectURL: URL.createObjectURL, revokeObjectURL: URL.revokeObjectURL };
+        Object.assign(URL, { createObjectURL, revokeObjectURL });
+        downloadNames = [];
+        clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+          downloadNames.push(this.download);
+        });
+      });
+
+      // happy-dom has no canvas API: define getContext / toBlob for one test
+      const stubCanvas = (getContext: () => unknown, toBlob?: (cb: BlobCallback) => void) => {
+        const proto = HTMLCanvasElement.prototype as unknown as Record<string, unknown>;
+        Object.defineProperty(proto, 'getContext', { value: vi.fn(getContext), configurable: true, writable: true });
+        Object.defineProperty(proto, 'toBlob', { value: vi.fn(toBlob ?? (() => {})), configurable: true, writable: true });
+        return proto as { getContext: ReturnType<typeof vi.fn>; toBlob: ReturnType<typeof vi.fn> };
+      };
+
+      afterEach(() => {
+        const proto = HTMLCanvasElement.prototype as unknown as Record<string, unknown>;
+        delete proto.getContext;
+        delete proto.toBlob;
+        Object.assign(URL, originalUrlFns);
+        delete (document as unknown as Record<string, unknown>).execCommand;
+        clickSpy.mockRestore();
+        vi.restoreAllMocks();
+        vi.useRealTimers();
+      });
+
+      it('copy writes the slip text to the clipboard and shows a toast', async () => {
+        const writeText = vi.fn(() => Promise.resolve());
+        vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, INPUT, '直接計算');
+
+        await clickTile(wrapper, '複製領款單');
+
+        expect(writeText).toHaveBeenCalledWith(SLIP_TEXT);
+        expect(showToastMock).toHaveBeenCalledWith('領款單已複製，可以貼給銀行了喵');
+      });
+
+      it('copy shows the failure toast when no copy method works', async () => {
+        vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) } });
+        Object.defineProperty(document, 'execCommand', { value: vi.fn(() => false), configurable: true });
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, INPUT, '直接計算');
+
+        await clickTile(wrapper, '複製領款單');
+
+        expect(showToastMock).toHaveBeenCalledWith('複製失敗了喵，再試一次看看');
+      });
+
+      it('CSV downloads a BOM + CRLF CSV blob named 領款明細_*.csv', async () => {
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, INPUT, '直接計算');
+
+        await clickTile(wrapper, '匯出 CSV');
+
+        expect(createObjectURL).toHaveBeenCalledTimes(1);
+        const blob = createObjectURL.mock.calls[0]![0] as Blob;
+        expect(blob.type).toBe('text/csv;charset=utf-8');
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        expect(Array.from(bytes.slice(0, 3))).toEqual([0xef, 0xbb, 0xbf]);
+        expect(new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes)).toBe(CSV);
+        expect(downloadNames[0]).toMatch(/^領款明細_\d{8}-\d{4}\.csv$/);
+        vi.runAllTimers();
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
+        expect(showToastMock).toHaveBeenCalledWith('CSV 匯出好了喵');
+      });
+
+      it('image draws the slip on a canvas and downloads a PNG', async () => {
+        const drawnTexts: string[] = [];
+        const ctx = new Proxy({} as Record<string | symbol, unknown>, {
+          get: (target, prop) => {
+            if (prop in target) return target[prop];
+            if (prop === 'measureText') return () => ({ width: 100 });
+            if (prop === 'fillText') return (text: string) => drawnTexts.push(text);
+            return () => {};
+          },
+          set: (target, prop, value) => { target[prop] = value; return true; },
+        });
+        const png = new Blob(['png'], { type: 'image/png' });
+        const { toBlob } = stubCanvas(() => ctx, (cb) => cb(png));
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, INPUT, '直接計算');
+
+        await clickTile(wrapper, '下載明細圖');
+
+        expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
+        expect(createObjectURL).toHaveBeenCalledWith(png);
+        expect(downloadNames[0]).toMatch(/^領款明細_\d{8}-\d{4}\.png$/);
+        // Time line ends with the number of entries calculated (3 lines, 2 people)
+        expect(drawnTexts.some((t) => t.startsWith('計算時間 ') && t.endsWith(' · 共 3 筆'))).toBe(true);
+        expect(showToastMock).toHaveBeenCalledWith('明細圖下載好了喵');
+      });
+
+      it('CSV in amount-only mode starts with 編號,金額 (the mode the calculation used)', async () => {
+        localStorage.setItem('preferences', JSON.stringify({ includesNames: false, denominations: [1000, 500, 100, 50, 10, 5, 1] }));
+        const { usePreferences } = await import('../../composables/usePreferences');
+        await usePreferences().loadPreferences();
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, '金額\n1500\n3', '直接計算');
+
+        await clickTile(wrapper, '匯出 CSV');
+
+        const blob = createObjectURL.mock.calls[0]![0] as Blob;
+        const csv = new TextDecoder('utf-8', { ignoreBOM: true }).decode(new Uint8Array(await blob.arrayBuffer()));
+        expect(csv).toBe(
+          '\uFEFF編號,金額,NT$1000,NT$500,NT$100,NT$50,NT$10,NT$5,NT$1\r\n' +
+          '第 1 筆,1500,1,1,0,0,0,0,0\r\n' +
+          '第 2 筆,3,0,0,0,0,0,0,3\r\n' +
+          '合計,1503,1,1,0,0,0,0,3',
+        );
+      });
+
+      it('image shows the failure toast when the canvas is unavailable', async () => {
+        stubCanvas(() => null);
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, INPUT, '直接計算');
+
+        await clickTile(wrapper, '下載明細圖');
+
+        expect(createObjectURL).not.toHaveBeenCalled();
+        expect(showToastMock).toHaveBeenCalledWith('明細圖下載失敗了喵，再試一次看看');
+      });
     });
 
     it('bill cells sum everyone (large → small), highlight the most-used bill and mark zeros', async () => {
@@ -776,6 +932,205 @@ describe('pages/index.vue', () => {
     });
   });
 
+  describe('偏好設定 (preferences)', () => {
+    const savePreferences = (key: string, value: object) => localStorage.setItem(key, JSON.stringify(value));
+    const guestPrefs = (value: object) => savePreferences('preferences', value);
+    const loadPrefs = async () => {
+      const { usePreferences } = await import('../../composables/usePreferences');
+      await usePreferences().loadPreferences();
+    };
+    const cellValues = (wrapper: VueWrapper) =>
+      wrapper.findAll('.result-area__denoms .app-denom-cell__value').map((v) => v.text());
+    const remainder = (wrapper: VueWrapper) => wrapper.find('.result-area__remainder');
+
+    it('member pill reads 到設定修改 and navigates to the settings route', async () => {
+      userRef.value = { id: 'u1' };
+      const wrapper = mountPage();
+      await wrapper.find('.current-settings button').trigger('click');
+      expect(navigateToMock).toHaveBeenCalledWith({ name: 'settings' });
+    });
+
+    it('member pill text reflects saved preferences (amount-only, N denominations)', async () => {
+      userRef.value = { id: 'u1' };
+      savePreferences('preferences:u1', { includesNames: false, denominations: [2000, 1000, 100, 1] });
+      await loadPrefs();
+      const wrapper = mountPage();
+      expect(wrapper.find('.current-settings button').text()).toContain('目前設定：純金額 · 4 種面額');
+    });
+
+    it('member pill uses the member preferences', async () => {
+      userRef.value = { id: 'u1' };
+      savePreferences('preferences:u1', { includesNames: true, denominations: [500, 100, 1] });
+      await loadPrefs();
+      const wrapper = mountPage();
+      expect(wrapper.find('.current-settings button').text()).toContain('目前設定：姓名,金額 · 3 種面額');
+    });
+
+    it('cells, badges and the calculation use the enabled denominations', async () => {
+      guestPrefs({ includesNames: true, denominations: [2000, 200, 20, 1] });
+      await loadPrefs();
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, '張三,2241', '直接計算');
+
+      expect(cellValues(wrapper)).toEqual(['NT$2,000', 'NT$200', 'NT$20', 'NT$1']);
+      // 2241 = 2000 + 200 + 20×2 + 1
+      const badges = wrapper.findAll('.summary-card__row-body .app-denom-badge').map((b) => b.text());
+      expect(badges).toHaveLength(4);
+      expect(remainder(wrapper).exists()).toBe(false);
+    });
+
+    it('shows the remainder warning when NT$1 is off (guest copy), and keeps the results', async () => {
+      guestPrefs({ includesNames: true, denominations: [1000, 500, 100, 50, 10, 5] });
+      await loadPrefs();
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, '張三,1003\n李四,1004', '直接計算');
+
+      expect(remainder(wrapper).attributes('role')).toBe('alert');
+      expect(remainder(wrapper).text()).toBe('還有 7 元找不開喵，因為你關掉了 NT$1。到左邊的偏好設定把它打開吧。');
+      expect(wrapper.find('.summary-card').exists()).toBe(true);
+    });
+
+    it('remainder warning names the smallest needed denomination and uses the member copy', async () => {
+      userRef.value = { id: 'u1' };
+      // 5 and 1 are off: 1005 leaves 5 (needs NT$5), 1007 leaves 7 (needs NT$5 + NT$1) → smallest is NT$1
+      savePreferences('preferences:u1', { includesNames: true, denominations: [1000, 500, 100, 50, 10] });
+      await loadPrefs();
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, '張三,1005', '計算並存檔');
+      expect(remainder(wrapper).text()).toBe('還有 5 元找不開喵，因為你關掉了 NT$5。到設定頁把它打開吧。');
+
+      await findButton(wrapper, '清除資料')!.trigger('click');
+      await typeAndCalculate(wrapper, '張三,1005\n李四,1007', '計算並存檔');
+      expect(remainder(wrapper).text()).toBe('還有 12 元找不開喵，因為你關掉了 NT$1。到設定頁把它打開吧。');
+    });
+
+    it('turning NT$1 back on (e.g. from the guest drawer) recalculates and removes the warning', async () => {
+      guestPrefs({ includesNames: true, denominations: [1000, 500, 100, 50, 10, 5] });
+      await loadPrefs();
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, '張三,1003', '直接計算');
+      expect(remainder(wrapper).exists()).toBe(true);
+
+      const { usePreferences } = await import('../../composables/usePreferences');
+      usePreferences().toggleDenomination(1);
+      await nextTick();
+      expect(remainder(wrapper).exists()).toBe(false);
+    });
+
+    describe('changing denominations through the guest form (drawer)', () => {
+      // The page next to the real 偏好設定 form, like the landing layout with its drawer
+      const mountWithForm = () => {
+        const Host = defineComponent({
+          setup: () => () => h('div', [h(AppPreferencesForm, { stacked: true }), h(IndexPage)]),
+        });
+        return mount(Host, {
+          global: {
+            components: {
+              AppButton, AppTextarea, AppChip, AppAlert, AppIllustrationSlot, AppIconButton,
+              AppTotalCard, AppDenomBadge, AppDenomCell, AppActionTile, AppDialog, AppCheckbox,
+              AppPreferencesForm, AppCatEarCard: AppCatEarCardStub,
+            },
+          },
+        });
+      };
+      const formBox = (wrapper: VueWrapper, label: string) =>
+        wrapper
+          .findAll('.app-preferences-form [role="checkbox"]')
+          .find((b) => b.find('.app-checkbox__label').text() === label)!;
+      const groupAll = (wrapper: VueWrapper, group: string) =>
+        wrapper.find(`.app-preferences-form__group[aria-label="${group}"] .app-preferences-form__group-head [role="checkbox"]`);
+      const cellCounts = (wrapper: VueWrapper) =>
+        wrapper.findAll('.result-area__denoms .app-denom-cell').map((c) => [
+          c.find('.app-denom-cell__value').text(),
+          c.find('.app-denom-cell__count').text(),
+        ]);
+      const badges = (wrapper: VueWrapper) =>
+        wrapper.findAll('.summary-card__row-body .app-denom-badge').map((b) => b.text());
+      // 1850 with [1000, 500, 200, 100, 50, 10, 5, 1] = 1000 + 500 + 200 + 100 + 50
+      const WITH_200 = [['NT$1,000', '1'], ['NT$500', '1'], ['NT$200', '1'], ['NT$100', '1'], ['NT$50', '1'], ['NT$10', '0'], ['NT$5', '0'], ['NT$1', '0']];
+      // Defaults: 1000 + 500 + 100×3 + 50
+      const DEFAULTS = [['NT$1,000', '1'], ['NT$500', '1'], ['NT$100', '3'], ['NT$50', '1'], ['NT$10', '0'], ['NT$5', '0'], ['NT$1', '0']];
+
+      it('NT$200 turned on before calculating is used (also before preferences are loaded)', async () => {
+        const wrapper = mountWithForm();
+        await formBox(wrapper, 'NT$200').trigger('click');
+        await loadPrefs(); // app.vue may finish loading after the toggle
+        await typeAndCalculate(wrapper, '張三,1850', '直接計算');
+
+        expect(formBox(wrapper, 'NT$200').attributes('aria-checked')).toBe('true');
+        expect(cellCounts(wrapper)).toEqual(WITH_200);
+        expect(badges(wrapper)).toHaveLength(5);
+        expect(JSON.parse(localStorage.getItem('preferences')!).denominations).toEqual([1000, 500, 200, 100, 50, 10, 5, 1]);
+      });
+
+      it('toggling NT$200 after calculating updates cells and badges live', async () => {
+        await loadPrefs();
+        const wrapper = mountWithForm();
+        await typeAndCalculate(wrapper, '張三,1850', '直接計算');
+        expect(cellCounts(wrapper)).toEqual(DEFAULTS);
+
+        await formBox(wrapper, 'NT$200').trigger('click');
+        expect(cellCounts(wrapper)).toEqual(WITH_200);
+        await formBox(wrapper, 'NT$200').trigger('click');
+        expect(cellCounts(wrapper)).toEqual(DEFAULTS);
+      });
+
+      it('coins only (紙鈔 全選 off) does not break the results, and bills can come back', async () => {
+        await loadPrefs();
+        const wrapper = mountWithForm();
+        await typeAndCalculate(wrapper, '張三,1850', '直接計算');
+
+        await groupAll(wrapper, '紙鈔').trigger('click'); // all bills on
+        await groupAll(wrapper, '紙鈔').trigger('click'); // all bills off
+        // 1850 = 50 × 37; no 紙鈔 group is shown
+        expect(cellCounts(wrapper)).toEqual([['NT$50', '37'], ['NT$10', '0'], ['NT$5', '0'], ['NT$1', '0']]);
+        expect(wrapper.find('.result-area__bills').exists()).toBe(false);
+        expect(wrapper.find('.app-denom-cell--top').exists()).toBe(false);
+
+        await formBox(wrapper, 'NT$200').trigger('click');
+        // 1850 = 200 × 9 + 50
+        expect(cellCounts(wrapper)).toEqual([['NT$200', '9'], ['NT$50', '1'], ['NT$10', '0'], ['NT$5', '0'], ['NT$1', '0']]);
+      });
+    });
+
+    describe('amount-only mode', () => {
+      beforeEach(async () => {
+        guestPrefs({ includesNames: false, denominations: [1000, 500, 100, 50, 10, 5, 1] });
+        await loadPrefs();
+      });
+
+      it('shows the 純金額 header, amount placeholder and reworded instructions', () => {
+        const wrapper = mountPage();
+        expect(wrapper.find('.text-lg').text()).toBe('現在支援純金額資料');
+        expect(wrapper.find('.text-accent-dark').text()).toBe('純金額');
+        expect(wrapper.find('textarea').attributes('placeholder')).toBe('18500\n"45,800"\nNT$32,000\n1999');
+        const notice = wrapper.find('.instruction--notice').text();
+        expect(notice).toContain('每一行只能有一筆金額。例如：18500。');
+        expect(notice).not.toContain('姓名');
+      });
+
+      it('parses amounts only, counts a 金額 header out, and shows the 純金額 chip', async () => {
+        const wrapper = mountPage();
+        await wrapper.find('textarea').setValue('金額\n100\n100');
+        expect(counterText(wrapper)).toBe('已貼 2 / 1,000 筆');
+        await findButton(wrapper, '直接計算')!.trigger('click');
+        await flushPromises();
+
+        const chips = summaryCard(wrapper).findAll('.app-total-card__chips .app-chip').map((c) => c.text());
+        expect(chips).toContain('純金額');
+        expect(chips).not.toContain('姓名,金額');
+        const rows = wrapper.findAll('.summary-card__row-head span:first-child').map((s) => s.text());
+        expect(rows).toEqual(['第 1 筆', '第 2 筆']);
+      });
+
+      it('shows amount-only errors', async () => {
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, '張三,100', '直接計算');
+        expect(errorItems(wrapper)).toEqual(['第 1 行「張三,100」不是金額']);
+      });
+    });
+  });
+
   describe('design-system feedback components', () => {
     it('errors render inside a warn Alert (role="alert") with the title', async () => {
       const wrapper = mountPage();
@@ -786,10 +1141,10 @@ describe('pages/index.vue', () => {
       expect(alert.find('.app-alert__title').text()).toBe(ERROR_TITLE);
     });
 
-    it('the entry-limit message has no title', async () => {
+    it('a non-line message (header row only) is shown without the title', async () => {
       const wrapper = mountPage();
-      await typeAndCalculate(wrapper, lines(1001), '直接計算');
-      expect(wrapper.find('.money-snap__error-box').exists()).toBe(true);
+      await typeAndCalculate(wrapper, '姓名,金額', '直接計算');
+      expect(errorItems(wrapper)).toEqual(['請輸入正確的資料格式']);
       expect(wrapper.find('.money-snap__error-box .app-alert__title').exists()).toBe(false);
     });
 
@@ -818,6 +1173,261 @@ describe('pages/index.vue', () => {
       const wrapper = mountPage();
       await typeAndCalculate(wrapper, '張三,100', '直接計算');
       expect(summaryCard(wrapper).attributes('data-tone')).toBe('hero');
+    });
+  });
+
+  describe('more than 1,000 entries (too-many card)', () => {
+    // n0000,1 … ; amounts of 1 make totals equal to the entry count
+    const overCard = (wrapper: VueWrapper) => wrapper.find('.over-card');
+    const textareaValue = (wrapper: VueWrapper) => (wrapper.find('textarea').element as HTMLTextAreaElement).value;
+    const notice = (wrapper: VueWrapper) => wrapper.find('.truncated-notice');
+    const clickButton = async (wrapper: VueWrapper, label: string) => {
+      const btn = findButton(wrapper, label);
+      expect(btn).toBeDefined();
+      await btn!.trigger('click');
+      await flushPromises();
+    };
+    const restOf = (n: number) =>
+      Array.from({ length: n - 1000 }, (_, i) => `name${i + 1000},1`).join('\n');
+
+    afterEach(() => {
+      delete (document as unknown as Record<string, unknown>).execCommand;
+      vi.useRealTimers();
+    });
+
+    it('calculate with 1,248 entries shows the too-many card instead of the placeholder, without parsing', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, lines(1248), '直接計算');
+
+      const card = overCard(wrapper);
+      expect(card.exists()).toBe(true);
+      expect(card.classes()).toContain('cat-card-stub');
+      expect(wrapper.find('.result-placeholder').exists()).toBe(false);
+      expect(wrapper.find('.summary-card').exists()).toBe(false);
+      expect(wrapper.find('.money-snap__error-box').exists()).toBe(false);
+
+      expect(card.find('.app-illustration-slot__label').text()).toBe('貓咪插畫：被一疊鈔票壓住');
+      expect(card.find('.over-card__title').text()).toBe('太多了喵，算不動 (=ΦдΦ=)');
+      expect(card.find('.over-card__desc').text()).toBe('你貼了 1,248 筆，每次最多只支援 1,000 筆，多出 248 筆。');
+      expect(card.find('.over-card__desc b.text-ink').text()).toBe('1,248');
+      expect(card.find('.over-card__desc b.text-warn-text').text()).toBe('248');
+      expect(card.findAll('.over-card__split-item').map((i) => i.text())).toEqual(['這次先算1,000 筆', '下一批248 筆']);
+      expect(card.find('.over-card__split-value.text-warn-text').text()).toBe('248 筆');
+
+      const buttons = card.findAll('button');
+      expect(buttons.map((b) => b.text())).toEqual(['只算前 1,000 筆', '複製第 1,001 筆之後的 248 筆']);
+      expect(buttons[0]!.classes()).toEqual(expect.arrayContaining(['app-button--primary', 'app-button--full']));
+      expect(buttons[1]!.classes()).toEqual(expect.arrayContaining(['app-button--secondary', 'app-button--full']));
+    });
+
+    it('the textarea stays editable, the counter stays warn and the calculate button stays', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, lines(1248), '直接計算');
+      expect(wrapper.find('textarea').attributes('readonly')).toBeUndefined();
+      expect(wrapper.find('.money-snap__counter').classes()).toContain('app-chip--warn');
+      expect(findButton(wrapper, '直接計算')).toBeDefined();
+      expect(findButton(wrapper, '清除資料')).toBeUndefined();
+    });
+
+    it('clears previous errors when the too-many card is shown', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, 'bad', '直接計算');
+      expect(errorItems(wrapper)).toHaveLength(1);
+      await typeAndCalculate(wrapper, lines(1001), '直接計算');
+      expect(wrapper.find('.money-snap__error-box').exists()).toBe(false);
+      expect(overCard(wrapper).exists()).toBe(true);
+    });
+
+    it('a header row is not counted (1,001 entries + header → 多出 1 筆)', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, `姓名,金額\n${lines(1001)}`, '直接計算');
+      expect(overCard(wrapper).find('.over-card__desc').text()).toBe('你貼了 1,001 筆，每次最多只支援 1,000 筆，多出 1 筆。');
+      expect(findButton(wrapper, '複製第 1,001 筆之後的 1 筆')).toBeDefined();
+    });
+
+    it('a fresh calculation after editing down to ≤ 1,000 entries leaves the too-many card', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, lines(1001), '直接計算');
+      await typeAndCalculate(wrapper, '張三,100', '直接計算');
+      expect(overCard(wrapper).exists()).toBe(false);
+      expect(summaryCard(wrapper).find('.app-total-card__amount-value').text()).toBe('100');
+      expect(notice(wrapper).exists()).toBe(false);
+    });
+
+    describe('copy the rest', () => {
+      it('copies lines 1,001+ and shows 「已複製 ✓」 for 1.6s', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const writeText = vi.fn(() => Promise.resolve());
+        vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, lines(1248), '直接計算');
+
+        await clickButton(wrapper, '複製第 1,001 筆之後的 248 筆');
+
+        expect(writeText).toHaveBeenCalledWith(restOf(1248));
+        expect(findButton(wrapper, '已複製 ✓')).toBeDefined();
+        expect(wrapper.find('.app-dialog').exists()).toBe(false);
+
+        vi.advanceTimersByTime(1599);
+        await nextTick();
+        expect(findButton(wrapper, '已複製 ✓')).toBeDefined();
+        vi.advanceTimersByTime(1);
+        await nextTick();
+        expect(findButton(wrapper, '已複製 ✓')).toBeUndefined();
+        expect(findButton(wrapper, '複製第 1,001 筆之後的 248 筆')).toBeDefined();
+      });
+
+      it('copies the original lines (header excluded) in amount-only mode', async () => {
+        localStorage.setItem('preferences', JSON.stringify({ includesNames: false, denominations: [1000, 500, 100, 50, 10, 5, 1] }));
+        const { usePreferences } = await import('../../composables/usePreferences');
+        await usePreferences().loadPreferences();
+        const writeText = vi.fn(() => Promise.resolve());
+        vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+        const amounts = Array.from({ length: 1002 }, (_, i) => String(i + 1));
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, `金額\n${amounts.join('\n')}`, '直接計算');
+
+        expect(overCard(wrapper).find('.over-card__desc').text()).toBe('你貼了 1,002 筆，每次最多只支援 1,000 筆，多出 2 筆。');
+        await clickButton(wrapper, '複製第 1,001 筆之後的 2 筆');
+        expect(writeText).toHaveBeenCalledWith('1001\n1002');
+      });
+
+      it('opens a dialog with the text in a readonly textarea when copying fails', async () => {
+        vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) } });
+        Object.defineProperty(document, 'execCommand', { value: vi.fn(() => false), configurable: true });
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, lines(1248), '直接計算');
+
+        await clickButton(wrapper, '複製第 1,001 筆之後的 248 筆');
+
+        const dialog = wrapper.find('.app-dialog');
+        expect(dialog.exists()).toBe(true);
+        expect(dialog.find('.app-dialog__title').text()).toBe('複製剩下的 248 筆');
+        const box = dialog.find('textarea');
+        expect(box.attributes('readonly')).toBeDefined();
+        expect((box.element as HTMLTextAreaElement).value).toBe(restOf(1248));
+        expect(findButton(wrapper, '已複製 ✓')).toBeUndefined();
+
+        await dialog.findAll('button').find((b) => b.text() === '複製好了')!.trigger('click');
+        expect(wrapper.find('.app-dialog').exists()).toBe(false);
+      });
+    });
+
+    describe('只算前 1,000 筆', () => {
+      it('calculates the first 1,000 entries and shows the notice with the next-batch button in the total card', async () => {
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, lines(1248), '直接計算');
+        await clickButton(wrapper, '只算前 1,000 筆');
+
+        expect(overCard(wrapper).exists()).toBe(false);
+        const card = summaryCard(wrapper);
+        expect(card.find('.app-total-card__amount-value').text()).toBe('1,000');
+        expect(card.text()).toContain('總筆數：1000 筆 · 1000 人');
+        const row = card.find('.truncated-notice');
+        expect(row.exists()).toBe(true);
+        expect(row.find('.truncated-notice__text').text()).toBe('只算了前 1,000 筆，還有 248 筆等下一批喵。');
+        const next = row.find('button');
+        expect(next.text()).toBe('算下一批 248 筆 ›');
+        expect(next.classes()).toEqual(expect.arrayContaining(['app-button--primary', 'app-button--sm']));
+        // Calculated: textarea locked, input kept as pasted
+        expect(wrapper.find('textarea').attributes('readonly')).toBeDefined();
+        expect(textareaValue(wrapper)).toBe(lines(1248));
+        expect(findButton(wrapper, '清除資料')).toBeDefined();
+      });
+
+      it('keeps the header row and calculates exactly 1,000 entries', async () => {
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, `姓名,金額\n${lines(1003)}`, '直接計算');
+        await clickButton(wrapper, '只算前 1,000 筆');
+
+        expect(wrapper.find('.money-snap__error-box').exists()).toBe(false);
+        expect(summaryCard(wrapper).text()).toContain('總筆數：1000 筆');
+        expect(notice(wrapper).text()).toContain('還有 3 筆等下一批喵');
+      });
+
+      it('uses the amount-only mode for the calculation', async () => {
+        localStorage.setItem('preferences', JSON.stringify({ includesNames: false, denominations: [1000, 500, 100, 50, 10, 5, 1] }));
+        const { usePreferences } = await import('../../composables/usePreferences');
+        await usePreferences().loadPreferences();
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, Array.from({ length: 1001 }, () => '2').join('\n'), '直接計算');
+        await clickButton(wrapper, '只算前 1,000 筆');
+
+        expect(summaryCard(wrapper).find('.app-total-card__amount-value').text()).toBe('2,000');
+        const chips = summaryCard(wrapper).findAll('.app-total-card__chips .app-chip').map((c) => c.text());
+        expect(chips).toContain('純金額');
+        expect(notice(wrapper).text()).toContain('還有 1 筆等下一批喵');
+      });
+
+      it('line errors in the first batch block the calculation and set no pending batch', async () => {
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, `bad\n${lines(1001)}`, '直接計算');
+        await clickButton(wrapper, '只算前 1,000 筆');
+
+        expect(errorItems(wrapper)).toEqual(['第 1 行「bad」少了逗號']);
+        expect(overCard(wrapper).exists()).toBe(false);
+        expectNotCalculated(wrapper);
+      });
+    });
+
+    describe('算下一批', () => {
+      it('≤ 1,000 pending entries: become the input, are calculated, and a toast is shown', async () => {
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, lines(1248), '直接計算');
+        await clickButton(wrapper, '只算前 1,000 筆');
+        await clickButton(wrapper, '算下一批 248 筆 ›');
+
+        expect(textareaValue(wrapper)).toBe(restOf(1248));
+        expect(counterText(wrapper)).toBe('已貼 248 / 1,000 筆');
+        expect(summaryCard(wrapper).find('.app-total-card__amount-value').text()).toBe('248');
+        expect(summaryCard(wrapper).text()).toContain('總筆數：248 筆');
+        expect(notice(wrapper).exists()).toBe(false);
+        expect(showToastMock).toHaveBeenCalledWith('已帶入下一批 248 筆並算好了喵');
+        expect(wrapper.find('textarea').attributes('readonly')).toBeDefined();
+      });
+
+      it('> 1,000 pending entries: become the input and show the too-many card again', async () => {
+        const wrapper = mountPage();
+        await typeAndCalculate(wrapper, lines(2300), '直接計算');
+        await clickButton(wrapper, '只算前 1,000 筆');
+        await clickButton(wrapper, '算下一批 1,300 筆 ›');
+
+        expect(textareaValue(wrapper)).toBe(restOf(2300));
+        expect(wrapper.find('.summary-card').exists()).toBe(false);
+        expect(overCard(wrapper).find('.over-card__desc').text()).toBe('你貼了 1,300 筆，每次最多只支援 1,000 筆，多出 300 筆。');
+        expect(wrapper.find('textarea').attributes('readonly')).toBeUndefined();
+        expect(showToastMock).not.toHaveBeenCalled();
+
+        // …and the next round calculates lines 1,001–2,000 of the original paste
+        await clickButton(wrapper, '只算前 1,000 筆');
+        expect(summaryCard(wrapper).text()).toContain('總筆數：1000 筆');
+        expect(notice(wrapper).text()).toContain('還有 300 筆等下一批喵');
+      });
+    });
+
+    it('清除資料 resets the truncated notice and pending batch', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, lines(1248), '直接計算');
+      await clickButton(wrapper, '只算前 1,000 筆');
+      await clickButton(wrapper, '清除資料');
+
+      expectNotCalculated(wrapper);
+      expect(overCard(wrapper).exists()).toBe(false);
+      expect(textareaValue(wrapper)).toBe('');
+
+      await typeAndCalculate(wrapper, '張三,100', '直接計算');
+      expect(notice(wrapper).exists()).toBe(false);
+    });
+
+    it('members see 「只算前 1,000 筆並存檔」', async () => {
+      userRef.value = { id: 'u1' };
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, lines(1001), '計算並存檔');
+      const buttons = overCard(wrapper).findAll('button').map((b) => b.text());
+      expect(buttons).toEqual(['只算前 1,000 筆並存檔', '複製第 1,001 筆之後的 1 筆']);
+
+      await clickButton(wrapper, '只算前 1,000 筆並存檔');
+      expect(notice(wrapper).text()).toContain('還有 1 筆等下一批喵');
     });
   });
 
