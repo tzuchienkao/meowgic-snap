@@ -9,7 +9,7 @@
           <!-- Header -->
           <div class="flex flex-col gap-1 text-center">
             <p class="text-ink text-lg">現在支援<span class="text-accent-dark">{{ formatLabel }}</span>資料</p>
-            <p class="text-muted text-base">按照下面提示的格式交出你的資料</p>
+            <p class="text-muted text-body-md">按照下面提示的格式交出你的資料</p>
           </div>
 
           <!-- Current settings (members only — guests use the 偏好設定 tab on the left edge) -->
@@ -755,7 +755,7 @@ const onLoginSaveClick = async () => {
 
 
 .instruction {
-  @apply flex flex-col gap-4 text-sm;
+  @apply flex flex-col gap-4 text-helper;
 }
 
 .instruction ul {
@@ -804,9 +804,9 @@ const onLoginSaveClick = async () => {
 .over-card__split-label {
   @apply text-xs text-muted;
 }
-/* DS 24px → closest token h2 (22) */
+/* DS 24px */
 .over-card__split-value {
-  @apply text-h2 text-ink;
+  @apply text-2xl text-ink;
 }
 .over-card__split-plus {
   @apply text-lg text-faint;
@@ -817,11 +817,11 @@ const onLoginSaveClick = async () => {
   @apply flex flex-wrap items-center justify-between gap-3 rounded-row bg-hero-chip py-2 pr-2 pl-4;
 }
 .truncated-notice__text {
-  @apply text-sm text-hero-chip-text;
+  @apply text-helper text-hero-chip-text;
 }
 
 .copy-box__hint {
-  @apply text-sm text-ink-2;
+  @apply text-helper text-ink-2;
 }
 .copy-box__text {
   @apply resize-none;

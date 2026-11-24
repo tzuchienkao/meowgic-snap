@@ -45,12 +45,12 @@ const emit = defineEmits<{ close: [] }>();
 
 @layer components {
   /* warn: DS radius 16, padding 10px 14px → 12px 16px */
-  .app-alert--warn { @apply flex flex-col gap-1 rounded-row bg-warn-bg px-4 py-3 text-sm text-warn-text; }
+  .app-alert--warn { @apply flex flex-col gap-1 rounded-row bg-warn-bg px-4 py-3 text-helper text-warn-text; }
   .app-alert__title { @apply font-bold; }
 
   /* success: DS radius 22 → 24, padding 10 10 10 18 → 8 8 8 16 */
   .app-alert--success { @apply flex items-center gap-3 rounded-3xl bg-surface py-2 pr-2 pl-4; }
   .app-alert__check { @apply flex flex-none items-center justify-center w-7 h-7 rounded-full bg-ok-bg text-ok-text text-body-sm font-bold; }
-  .app-alert__message { @apply flex-1 text-base text-ink; }
+  .app-alert__message { @apply flex-1 text-body-md text-ink; }
 }
 </style>

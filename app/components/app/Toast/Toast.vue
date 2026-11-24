@@ -23,7 +23,7 @@ const { fixed = false } = defineProps<{
 
 @layer components {
   /* DS padding 12px 22px → 12px 24px */
-  .app-toast { @apply self-center rounded-full bg-strong px-6 py-3 text-base text-strong-text whitespace-nowrap; }
+  .app-toast { @apply self-center rounded-full bg-strong px-6 py-3 text-body-md text-strong-text whitespace-nowrap; }
   .app-toast--fixed { @apply fixed bottom-6 left-1/2 z-60 -translate-x-1/2; }
 }
 </style>

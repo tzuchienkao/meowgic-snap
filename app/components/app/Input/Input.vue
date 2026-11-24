@@ -87,7 +87,7 @@ const onInput = (event: Event) => {
 @layer components {
   .app-input { @apply flex flex-col gap-1; }
 
-  .app-input__label { @apply px-2 text-sm font-medium text-ink-2; }
+  .app-input__label { @apply px-2 text-helper font-medium text-ink-2; }
 
   .app-input__row { @apply flex gap-2; }
 

@@ -148,6 +148,6 @@ const onSampleClick = () => {
   .app-preferences-form--stacked .app-preferences-form__format { @apply flex-col items-start py-3; }
   .app-preferences-form--stacked .app-preferences-form__groups { @apply grid-cols-1; }
   .app-preferences-form__group-head { @apply flex items-center justify-between gap-2; }
-  .app-preferences-form__group-title { @apply text-base font-bold text-ink; }
+  .app-preferences-form__group-title { @apply text-body-md font-bold text-ink; }
 }
 </style>

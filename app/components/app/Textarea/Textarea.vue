@@ -42,7 +42,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
 @layer components {
   .app-textarea {
-    @apply block w-full min-h-40 resize-y rounded-inset border-2 border-dashed border-line bg-surface p-4 font-mono text-base text-ink outline-none;
+    @apply block w-full min-h-40 resize-y rounded-inset border-2 border-dashed border-line bg-surface p-4 font-mono text-body-md text-ink outline-none;
     transition: border-color 0.2s;
   }
   .app-textarea:focus { @apply border-accent; }

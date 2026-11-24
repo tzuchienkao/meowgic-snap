@@ -142,6 +142,6 @@ const onMagicLinkClick = async () => {
 }
 
 .login-dialog__description {
-  @apply text-center text-base text-muted;
+  @apply text-center text-body-md text-muted;
 }
 </style>

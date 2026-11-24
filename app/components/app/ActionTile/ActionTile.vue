@@ -37,7 +37,7 @@ const onClick = () => {
     transition: background-color 0.3s;
   }
   .app-action-tile__glyph { @apply text-lg leading-6 text-accent-text; }
-  .app-action-tile__label { @apply text-sm text-ink; }
+  .app-action-tile__label { @apply text-helper text-ink; }
   .app-action-tile:disabled { @apply bg-soft cursor-not-allowed; }
   .app-action-tile:disabled .app-action-tile__glyph,
   .app-action-tile:disabled .app-action-tile__label { @apply text-faint; }

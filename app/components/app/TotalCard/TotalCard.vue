@@ -9,7 +9,7 @@
         </span>
       </div>
       <div v-if="chips.length" class="app-total-card__chips">
-        <app-chip v-for="(chip, index) in chips" :key="index" tone="hero" class="text-sm">{{ chip }}</app-chip>
+        <app-chip v-for="(chip, index) in chips" :key="index" tone="hero" class="text-helper">{{ chip }}</app-chip>
       </div>
       <slot />
     </div>
@@ -56,8 +56,8 @@ const {
   .app-total-card--lg .app-total-card__head { @apply flex-col items-start justify-start gap-2; }
 
   .app-total-card__label { @apply text-btn text-hero-text; }
-  .app-total-card__amount-value { @apply text-3xl leading-tight text-hero-num; }
-  .app-total-card--lg .app-total-card__amount-value { @apply text-4xl; }
+  .app-total-card__amount-value { @apply text-total leading-tight text-hero-num; }
+  .app-total-card--lg .app-total-card__amount-value { @apply text-display; }
   .app-total-card__unit { @apply text-btn text-hero-text; }
   .app-total-card--lg .app-total-card__unit { @apply text-lg; }
 

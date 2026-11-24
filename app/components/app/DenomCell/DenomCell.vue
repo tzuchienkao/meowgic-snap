@@ -48,7 +48,7 @@ const formatted = (n: number) => n.toLocaleString('en-US');
   .app-denom-cell--bill { @apply rounded-3xl px-2 py-3; }
   .app-denom-cell--bill.app-denom-cell--compact { @apply rounded-inset py-2; }
   .app-denom-cell--bill .app-denom-cell__value { @apply text-xs font-medium; }
-  .app-denom-cell--bill .app-denom-cell__count { @apply text-2xl; }                         /* 28 */
+  .app-denom-cell--bill .app-denom-cell__count { @apply text-h1; }                         /* 28 */
   .app-denom-cell--bill.app-denom-cell--compact .app-denom-cell__count { @apply text-xl; }  /* DS 24 → 20 */
   .app-denom-cell__unit { @apply text-xs; }
 

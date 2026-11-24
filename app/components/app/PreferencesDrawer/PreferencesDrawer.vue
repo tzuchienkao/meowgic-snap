@@ -105,7 +105,7 @@ const { onPanelRef, onKeydown } = useFocusTrap(close);
     @apply transition-transform duration-(--ms-dur-fast) ease-ms hover:translate-x-1 focus-visible:translate-x-1;
   }
   .app-preferences-tab__label {
-    @apply text-base leading-5 tracking-widest;
+    @apply text-body-md leading-5 tracking-widest;
     writing-mode: vertical-rl;
   }
 

@@ -1,8 +1,8 @@
 <template>
   <div class="page-settings flex flex-col gap-5">
     <div class="page-settings__header">
-      <h1 class="text-ink text-2xl">設定</h1>
-      <p class="text-muted text-sm mt-1">這裡改的設定都會幫你記住，下次登入還在喵</p>
+      <h1 class="text-ink text-h1">設定</h1>
+      <p class="text-muted text-helper mt-1">這裡改的設定都會幫你記住，下次登入還在喵</p>
     </div>
     <!-- DS: one column under 900px, two columns from 900px (desktop: breakpoint) -->
     <div class="page-settings__body grid grid-cols-1 items-start gap-6 desktop:grid-cols-2">
@@ -160,10 +160,10 @@ const onDeleteConfirmClick = () => {
   @apply flex flex-1 basis-48 flex-col gap-1;
 }
 .account-row__title {
-  @apply text-base font-medium text-ink;
+  @apply text-body-md font-medium text-ink;
 }
 .account-row__desc {
-  @apply text-sm;
+  @apply text-helper;
 }
 
 .preferences-card__header {
@@ -174,7 +174,7 @@ const onDeleteConfirmClick = () => {
 }
 
 .delete-dialog__text {
-  @apply text-center text-base text-ink;
+  @apply text-center text-body-md text-ink;
 }
 .delete-dialog__actions {
   @apply flex flex-col gap-2;

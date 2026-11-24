@@ -43,6 +43,6 @@ const {
 
   .app-card__header { @apply flex flex-wrap items-baseline justify-between gap-3; }
   .app-card__title { @apply text-lg; }
-  .app-card__aside { @apply text-sm text-muted; }
+  .app-card__aside { @apply text-helper text-muted; }
 }
 </style>

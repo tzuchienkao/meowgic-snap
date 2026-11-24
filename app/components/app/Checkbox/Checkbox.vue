@@ -71,7 +71,7 @@ const onClick = () => {
 
   .app-checkbox__label { @apply text-ink; }
   .app-checkbox--round .app-checkbox__label { @apply text-btn; }
-  .app-checkbox--sans .app-checkbox__label { @apply text-base font-medium; }
+  .app-checkbox--sans .app-checkbox__label { @apply text-body-md font-medium; }
 
   .app-checkbox__note { @apply text-xs text-muted; }
 
