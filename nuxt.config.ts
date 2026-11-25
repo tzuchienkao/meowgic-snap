@@ -4,6 +4,12 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  modules: ['nuxt-gtag'],
+
+  // GA4: the ID comes from NUXT_PUBLIC_GTAG_ID at runtime (set it only in Cloudflare Pages' Production env)
+  gtag: {
+    enabled: process.env.NODE_ENV === 'production',
+  },
   css: ['~/assets/css/main.css'],
 
   app: {
