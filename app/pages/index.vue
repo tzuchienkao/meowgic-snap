@@ -339,11 +339,13 @@ import {
   ExportExt,
 } from '~/utils/exporters';
 import { copyText, createCsvBlob, downloadBlob, drawSlipImage } from '~/utils/download';
+import { AnalyticsEvent, AnalyticsResult } from '~/constants/analytics';
 
 // Composables
 const { user } = useAuth();
 const { showToast } = useToast();
 const { preferences } = usePreferences();
+const { gtag } = useGtag();
 
 interface IDenominationItem {
   denomination: number;
@@ -696,8 +698,17 @@ const slipInput = () => ({
   denominations: activeDenominations.value,
 });
 
+// GA: which export was used and whether it worked, with the entry count only (no names or amounts)
+const trackExport = (event: AnalyticsEvent, isSuccess: boolean) => {
+  gtag('event', event, {
+    result: isSuccess ? AnalyticsResult.Success : AnalyticsResult.Failed,
+    entry_count: resultState.value.entryCount,
+  });
+};
+
 const onCopySlipClick = async () => {
   const copied = await copyText(buildSlipText(slipInput()));
+  trackExport(AnalyticsEvent.CopySlip, copied);
   showToast(copied ? EXPORT_MESSAGES.copyDone : EXPORT_MESSAGES.copyFailed);
 };
 
@@ -710,8 +721,10 @@ const onDownloadImageClick = async () => {
     });
     const blob = await drawSlipImage(model);
     downloadBlob(blob, buildExportFileName(ExportExt.Png, new Date()));
+    trackExport(AnalyticsEvent.DownloadImage, true);
     showToast(EXPORT_MESSAGES.imageDone);
   } catch {
+    trackExport(AnalyticsEvent.DownloadImage, false);
     showToast(EXPORT_MESSAGES.imageFailed);
   }
 };
@@ -726,8 +739,10 @@ const onExportCsvClick = () => {
       includesNames: resultState.value.includesNames,
     });
     downloadBlob(createCsvBlob(csv), buildExportFileName(ExportExt.Csv, new Date()));
+    trackExport(AnalyticsEvent.ExportCsv, true);
     showToast(EXPORT_MESSAGES.csvDone);
   } catch {
+    trackExport(AnalyticsEvent.ExportCsv, false);
     showToast(EXPORT_MESSAGES.csvFailed);
   }
 };

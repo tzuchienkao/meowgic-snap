@@ -44,6 +44,7 @@ let userRef: Ref<unknown>;
 let themeRef: Ref<'light' | 'dark'>;
 let navigateToMock: ReturnType<typeof vi.fn>;
 let showToastMock: ReturnType<typeof vi.fn>;
+let gtagMock: ReturnType<typeof vi.fn>;
 // Minimal stand-in for Nuxt's useState (usePreferences keeps its cache there)
 let stateStore: Record<string, Ref<unknown>>;
 const useStateStub = <T>(key: string, init: () => T) => {
@@ -123,6 +124,8 @@ beforeEach(() => {
   vi.stubGlobal('navigateTo', navigateToMock);
   showToastMock = vi.fn();
   vi.stubGlobal('useToast', () => ({ showToast: showToastMock }));
+  gtagMock = vi.fn();
+  vi.stubGlobal('useGtag', () => ({ gtag: gtagMock }));
   // Member preferences load from Supabase; with nothing there yet they are migrated from
   // localStorage `preferences:<id>`, which is how these tests seed them.
   const supabase = createFakeSupabase(() => userRef.value?.id ?? null);
@@ -775,6 +778,7 @@ describe('pages/index.vue', () => {
 
         expect(writeText).toHaveBeenCalledWith(SLIP_TEXT);
         expect(showToastMock).toHaveBeenCalledWith('領款單已複製，可以貼給銀行了喵');
+        expect(gtagMock).toHaveBeenCalledWith('event', 'copy_slip', { result: 'success', entry_count: 3 });
       });
 
       it('copy shows the failure toast when no copy method works', async () => {
@@ -786,6 +790,7 @@ describe('pages/index.vue', () => {
         await clickTile(wrapper, '複製領款單');
 
         expect(showToastMock).toHaveBeenCalledWith('複製失敗了喵，再試一次看看');
+        expect(gtagMock).toHaveBeenCalledWith('event', 'copy_slip', { result: 'failed', entry_count: 3 });
       });
 
       it('CSV downloads a BOM + CRLF CSV blob named 領款明細_*.csv', async () => {
@@ -804,6 +809,7 @@ describe('pages/index.vue', () => {
         vi.runAllTimers();
         expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
         expect(showToastMock).toHaveBeenCalledWith('CSV 匯出好了喵');
+        expect(gtagMock).toHaveBeenCalledWith('event', 'export_csv', { result: 'success', entry_count: 3 });
       });
 
       it('image draws the slip on a canvas and downloads a PNG', async () => {
@@ -830,6 +836,7 @@ describe('pages/index.vue', () => {
         // Time line ends with the number of entries calculated (3 lines, 2 people)
         expect(drawnTexts.some((t) => t.startsWith('計算時間 ') && t.endsWith(' · 共 3 筆'))).toBe(true);
         expect(showToastMock).toHaveBeenCalledWith('明細圖下載好了喵');
+        expect(gtagMock).toHaveBeenCalledWith('event', 'download_image', { result: 'success', entry_count: 3 });
       });
 
       it('CSV in amount-only mode starts with 編號,金額 (the mode the calculation used)', async () => {
@@ -860,6 +867,7 @@ describe('pages/index.vue', () => {
 
         expect(createObjectURL).not.toHaveBeenCalled();
         expect(showToastMock).toHaveBeenCalledWith('明細圖下載失敗了喵，再試一次看看');
+        expect(gtagMock).toHaveBeenCalledWith('event', 'download_image', { result: 'failed', entry_count: 3 });
       });
     });
 
