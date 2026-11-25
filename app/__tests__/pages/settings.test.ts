@@ -204,24 +204,49 @@ describe('pages/settings.vue', () => {
   });
 
   describe('偏好設定', () => {
-    it('shows the auto-save note and the preferences form bound to the member', async () => {
+    const status = (w: VueWrapper) => w.find('.preferences-card__status');
+    const toggle = async (w: VueWrapper, label: string) =>
+      w.find('.preferences-card').findAll('[role="checkbox"]').find((c) => c.text() === label)!.trigger('click');
+
+    it('shows the save status and the preferences form bound to the member', async () => {
       const w = mountPage();
       const card = w.find('.preferences-card');
       expect(card.find('h2').text()).toBe('偏好設定');
-      expect(card.find('.preferences-card__saved').text()).toBe('已自動儲存');
+      expect(status(w).text()).toBe('已自動儲存');
+      expect(status(w).attributes('aria-live')).toBe('polite');
       expect(card.find('.app-preferences-form').exists()).toBe(true);
 
       vi.useFakeTimers();
       const twenty = card.findAll('[role="checkbox"]').find((c) => c.text() === 'NT$20')!;
       await twenty.trigger('click');
       expect(twenty.attributes('aria-checked')).toBe('true');
+      expect(status(w).text()).toBe('儲存中…');
 
       // Saved to the member's account after the debounce, never to the guest key
       expect(supabase.auth.updateUser).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(MEMBER_SAVE_DEBOUNCE_MS);
       expect((supabase.metadata.u1!.preferences as { denominations: number[] }).denominations).toContain(20);
       expect(localStorage.getItem('preferences')).toBeNull();
+      expect(status(w).text()).toBe('已自動儲存');
     });
 
+    it('a failed save shows 沒存成功 with 再試一次, which sends the current preferences again', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      supabase.auth.updateUser.mockResolvedValueOnce({ data: { user: null }, error: new Error('offline') });
+      const w = mountPage();
+      vi.useFakeTimers();
+
+      await toggle(w, 'NT$20');
+      await vi.advanceTimersByTimeAsync(MEMBER_SAVE_DEBOUNCE_MS);
+      expect(status(w).text()).toMatch(/^沒存成功\s+再試一次$/);
+      expect(status(w).classes()).toContain('preferences-card__status--failed');
+
+      await status(w).find('.preferences-card__retry').trigger('click');
+      await flushPromises();
+      expect(status(w).text()).toBe('已自動儲存');
+      expect(status(w).find('.preferences-card__retry').exists()).toBe(false);
+      expect(supabase.auth.updateUser).toHaveBeenCalledTimes(2);
+      expect((supabase.metadata.u1!.preferences as { denominations: number[] }).denominations).toContain(20);
+    });
   });
 });

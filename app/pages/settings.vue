@@ -55,7 +55,18 @@
       <app-cat-ear-card class="preferences-card">
         <div class="preferences-card__header">
           <h2 class="text-ink text-lg">偏好設定</h2>
-          <span class="preferences-card__saved">已自動儲存</span>
+          <!-- Save status of the member's latest change; polite live region so it is announced -->
+          <p class="preferences-card__status" :class="`preferences-card__status--${saveStatus}`" aria-live="polite">
+            {{ SAVE_STATUS_TEXT[saveStatus] }}
+            <button
+              v-if="saveStatus === MemberSaveStatus.Failed"
+              type="button"
+              class="preferences-card__retry"
+              @click="retrySave"
+            >
+              再試一次
+            </button>
+          </p>
         </div>
         <app-preferences-form />
       </app-cat-ear-card>
@@ -81,6 +92,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { MAX_DISPLAY_NAME_LENGTH } from '~/constants/user';
+import { usePreferences } from '~/composables/usePreferences';
+import { MemberSaveStatus } from '~/types/preferences';
 
 const NAME_HINT = '顯示在右上角';
 const DELETE_WARNING = '帳號和全部紀錄都會永久刪除，救不回來喵。';
@@ -92,6 +105,13 @@ const MESSAGES = {
 
 const { user, updateUserName, error: authError } = useAuth();
 const { showToast } = useToast();
+const { saveStatus, retrySave } = usePreferences();
+
+const SAVE_STATUS_TEXT: Record<MemberSaveStatus, string> = {
+  [MemberSaveStatus.Saved]: '已自動儲存',
+  [MemberSaveStatus.Saving]: '儲存中…',
+  [MemberSaveStatus.Failed]: '沒存成功',
+};
 
 const userEmail = ref(user.value?.email || '');
 const savedName = computed(() => user.value?.display_name || '');
@@ -169,8 +189,14 @@ const onDeleteConfirmClick = () => {
 .preferences-card__header {
   @apply flex items-baseline justify-between gap-3;
 }
-.preferences-card__saved {
-  @apply text-xs text-muted;
+.preferences-card__status {
+  @apply flex items-baseline gap-2 text-xs text-muted;
+}
+.preferences-card__status--failed {
+  @apply text-danger;
+}
+.preferences-card__retry {
+  @apply text-link underline underline-offset-2 hover:text-link-hover cursor-pointer;
 }
 
 .delete-dialog__text {
