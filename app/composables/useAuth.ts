@@ -5,6 +5,19 @@ interface IUser {
   display_name?: string;
 }
 
+interface IAuthUserFields {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, any>;
+}
+
+const toUser = ({ id, email, user_metadata: metadata }: IAuthUserFields): IUser => ({
+  id,
+  email: email || '',
+  name: metadata?.name || email || '使用者',
+  display_name: metadata?.display_name || undefined,
+});
+
 export const useAuth = () => {
   const user = useState('user', () => null);
   const isAuthenticated = computed(() => !!user.value);
@@ -76,20 +89,25 @@ export const useAuth = () => {
     try {
       if (!supabase) return;
 
+      if (import.meta.server) {
+        // The session comes from a request cookie, which anyone can forge: verify the JWT
+        // (getClaims checks its signature) instead of trusting getSession() here.
+        const { data, error: err } = await supabase.auth.getClaims();
+        if (err) throw err;
+        const claims = data?.claims;
+        setUser(
+          claims
+            ? toUser({ id: claims.sub, email: claims.email, user_metadata: claims.user_metadata })
+            : null,
+        );
+        return;
+      }
+
       const { data: { session }, error: err } = await supabase.auth.getSession();
       
       if (err) throw err;
 
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.name || session.user.email || '使用者',
-          display_name: session.user.user_metadata?.display_name || undefined,
-        });
-      } else {
-        setUser(null);
-      }
+      setUser(session?.user ? toUser(session.user) : null);
     } catch (err) {
       console.error('Session verification error:', err);
       error.value = err instanceof Error ? err.message : '驗證 Session 失敗';
@@ -134,11 +152,9 @@ export const useAuth = () => {
     //   email: 'demo@meowgic.com',
     //   name: '喵奴才'
     // };
-    if (import.meta.client) {
-      // 優先檢查 Supabase session
-      if (supabase) {
-        await verifySession();
-      }
+    // Server: from the request's session cookie (plugins/02.auth.ts) · browser: re-check after hydration
+    if (supabase) {
+      await verifySession();
     }
   };
 

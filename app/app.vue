@@ -22,27 +22,27 @@ const { user, initAuth } = useAuth();
 const { toastMessage, isToastVisible } = useToast();
 const { loadPreferences } = usePreferences();
 
-const isAuthReady = ref(false)
-
 // <html data-theme> follows the derived theme: guests light, members their saved choice.
 useHead({ htmlAttrs: { 'data-theme': theme } });
 
 onMounted(async () => {
   loadSavedTheme();
   initAgentMode();
+  // Correct the server's user-agent guess with the real width before anything awaits
+  setAgentMode();
+  // `user` already came from SSR (plugins/02.auth.ts); re-check the session in the browser
   await initAuth();
   // Auth state is known now: load the guest's and (when signed in) the member's 偏好設定
   await loadPreferences();
-  setAgentMode();
-  isAuthReady.value = true;
 });
 
 onBeforeUnmount(() => {
   cleanupAgentMode();
 });
 
+// `user` is known during SSR (session cookie), so the first HTML already has the right layout
 const layout = computed(() => {
-  if (isAuthReady.value && user.value) {
+  if (user.value) {
     return agentMode.value === 'mobile' ? 'mobile-default' : 'desktop-default'
   } else {
     return 'desktop-landing';
