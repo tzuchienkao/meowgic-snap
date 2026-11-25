@@ -94,13 +94,13 @@ import { computed, reactive, ref } from 'vue';
 import { MAX_DISPLAY_NAME_LENGTH } from '~/constants/user';
 import { usePreferences } from '~/composables/usePreferences';
 import { MemberSaveStatus } from '~/types/preferences';
+import { FEATURE_NOT_READY_MESSAGE } from '~/constants/feature';
 
 const NAME_HINT = '顯示在右上角';
 const DELETE_WARNING = '帳號和全部紀錄都會永久刪除，救不回來喵。';
 const MESSAGES = {
   nameSaved: '名稱存好了喵',
   nameFailed: '名稱沒有存成功喵，再試一次看看',
-  notReady: '這個功能還在準備中喵',
 } as const;
 
 const { user, updateUserName, error: authError } = useAuth();
@@ -151,12 +151,12 @@ const onSaveNameClick = async () => {
 
 // 停用 / 刪除帳號: UI only for now
 const onDeactivateClick = () => {
-  showToast(MESSAGES.notReady);
+  showToast(FEATURE_NOT_READY_MESSAGE);
 };
 
 const onDeleteConfirmClick = () => {
   isDeleteDialogOpen.value = false;
-  showToast(MESSAGES.notReady);
+  showToast(FEATURE_NOT_READY_MESSAGE);
 };
 </script>
 
