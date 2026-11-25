@@ -23,9 +23,11 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', '.nuxt', '.output']
   },
   resolve: {
-    alias: {
-      '~': path.resolve(__dirname, './'),
-      '@': path.resolve(__dirname, './app')
-    }
+    alias: [
+      // @vitejs/plugin-vue turns a template src of `~/assets/...` into the bare request `assets/...`
+      { find: /^assets\//, replacement: `${path.resolve(__dirname, './app/assets')}/` },
+      { find: '~', replacement: path.resolve(__dirname, './') },
+      { find: '@', replacement: path.resolve(__dirname, './app') },
+    ]
   }
 });

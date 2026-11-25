@@ -139,7 +139,7 @@ describe('pages/index.vue', () => {
       const wrapper = mountPage();
 
       expectNotCalculated(wrapper);
-      expect(wrapper.find('.result-placeholder').text()).toContain(PLACEHOLDER_CAPTION);
+      expect(wrapper.find('.result-placeholder img').attributes('alt')).toBe(PLACEHOLDER_CAPTION);
       expect(counterText(wrapper)).toBe('已貼 0 / 1,000 筆');
       expect(wrapper.find('.money-snap__errors').exists()).toBe(false);
       expect(errorTitle(wrapper).exists()).toBe(false);
@@ -526,7 +526,6 @@ describe('pages/index.vue', () => {
       expect(counterText(wrapper)).toBe('已貼 0 / 1,000 筆');
       expectNotCalculated(wrapper);
       expect(findButton(wrapper, '直接計算')).toBeDefined();
-      expect(findButton(wrapper, '登入存檔')).toBeDefined();
 
       await typeAndCalculate(wrapper, '李四,200', '直接計算');
       expect(summaryCard(wrapper).find('.app-total-card__amount-value').text()).toBe('200');
@@ -584,7 +583,6 @@ describe('pages/index.vue', () => {
       expect(wrapper.find('textarea').attributes('disabled')).toBeUndefined();
       expect(findButton(wrapper, '匯入 CSV')!.attributes('disabled')).toBeUndefined();
       expect(findButton(wrapper, '直接計算')!.attributes('disabled')).toBeUndefined();
-      expect(findButton(wrapper, '登入存檔')!.attributes('disabled')).toBeUndefined();
 
       await typeAndCalculate(wrapper, '張三,1', '直接計算');
       expect(wrapper.find('textarea').attributes('disabled')).toBeUndefined();
@@ -593,15 +591,17 @@ describe('pages/index.vue', () => {
   });
 
   describe('guest login prompt', () => {
-    it('shows calculate + 登入存檔 buttons and no current-settings pill (guests use the left-edge 偏好設定 tab)', () => {
+    // TODO: 登入功能開放後，把 登入存檔 加回這裡的按鈕清單
+    it('shows only the calculate button and no current-settings pill (guests use the left-edge 偏好設定 tab)', () => {
       const wrapper = mountPage();
       expect(wrapper.find('.login-prompt').exists()).toBe(false);
       const actions = wrapper.find('.action-buttons').findAll('button').map((b) => b.text());
-      expect(actions).toEqual(['直接計算', '登入存檔 ฅ^•ﻌ•^ฅ']);
+      expect(actions).toEqual(['直接計算']);
       expect(wrapper.find('.current-settings').exists()).toBe(false);
     });
 
-    it('"登入存檔" calls navigateTo("/")', async () => {
+    // TODO: 登入功能尚未開放，登入存檔 按鈕先拿掉了；開放後改回 it
+    it.skip('"登入存檔" calls navigateTo("/")', async () => {
       const wrapper = mountPage();
       await findButton(wrapper, '登入存檔')!.trigger('click');
       await flushPromises();
@@ -1153,11 +1153,11 @@ describe('pages/index.vue', () => {
       expect(wrapper.find('.money-snap__error-box .app-alert__title').exists()).toBe(false);
     });
 
-    it('placeholder is an IllustrationSlot with the cat caption', () => {
+    it('placeholder is an IllustrationSlot with the cat illustration', () => {
       const wrapper = mountPage();
       const slot = wrapper.find('.result-placeholder');
       expect(slot.classes()).toContain('app-illustration-slot');
-      expect(slot.find('.app-illustration-slot__label').text()).toBe(PLACEHOLDER_CAPTION);
+      expect(slot.find('img').attributes('alt')).toBe(PLACEHOLDER_CAPTION);
     });
   });
 
