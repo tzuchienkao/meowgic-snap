@@ -17,6 +17,7 @@
     <main>
       <slot />
     </main>
+    <footer class="p-4"></footer>
   </desktop-wrapper>
 </template>
 

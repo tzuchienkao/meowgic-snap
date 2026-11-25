@@ -136,13 +136,14 @@
                   :disabled="!canCalculate || isProcessing"
                   @click="onCalculateClick"
                 />
-                <app-button
+                <!-- TODO: 登入功能尚未開放 -->
+                <!-- <app-button
                   variant="strong"
                   full
                   label="登入存檔 ฅ^•ﻌ•^ฅ"
                   :disabled="isProcessing"
                   @click="onLoginSaveClick"
-                />
+                /> -->
               </template>
               <app-button
                 v-else
@@ -190,10 +191,11 @@
         <app-illustration-slot
           v-else-if="!resultState.isCalculated"
           class="result-placeholder"
-          label="貓咪插畫：橘白貓趴著等"
           radius="card"
-          :stripe="10"
+          :stripe="0"
         >
+          <img src="~/assets/images/tabby-cat-lying-stretched.svg" alt="貓咪插畫：橘白貓趴著等" />
+
           <p class="result-placeholder__text">算好的結果會出現在這裡喵</p>
         </app-illustration-slot>
 

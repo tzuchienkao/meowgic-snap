@@ -16,6 +16,7 @@
     <main>
       <slot />
     </main>
+    <footer class="p-4"></footer>
     <!-- Guest 偏好設定: tab on the left edge + floating panel (members use the settings page) -->
     <app-preferences-drawer />
     <app-dialog

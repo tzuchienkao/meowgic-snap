@@ -61,6 +61,7 @@
     <main>
       <slot />
     </main>
+    <footer class="p-4"></footer>
     <div v-show="isShowAccountPanel" class="mask fixed inset-0 bg-scrim"></div>
   </mobile-wrapper>
 </template>
