@@ -13,12 +13,15 @@ definePageMeta({
     // another browser), the page renders and the browser client tries once more on its own.
     async (to) => {
       if (!import.meta.server || typeof to.query.code !== 'string') return
-      const { error } = await useNuxtApp().$supabase.auth.exchangeCodeForSession(to.query.code)
+      // Inline middleware gets no automatic async context: after the await, Nuxt composables
+      // (navigateTo) no longer find the app, so take it first and run them inside its context.
+      const nuxtApp = useNuxtApp()
+      const { error } = await nuxtApp.$supabase.auth.exchangeCodeForSession(to.query.code)
       if (error) {
         console.error('Exchange code error:', error)
         return
       }
-      return navigateTo('/', { redirectCode: 302 })
+      return nuxtApp.runWithContext(() => navigateTo('/', { redirectCode: 302 }))
     },
   ],
 })
