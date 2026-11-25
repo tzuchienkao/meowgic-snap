@@ -6,3 +6,6 @@ export const MAX_DISPLAY_NAME_LENGTH = 5;
 
 /** Toast shown after the guest 偏好設定 drawer's save button (「喵不負責存檔」) saves the changes. */
 export const PREFERENCES_SAVED_MESSAGE = '偏好設定存好了喵';
+
+/** Toast shown when a member's 偏好設定 could not be saved to their account. */
+export const PREFERENCES_SAVE_FAILED_MESSAGE = '設定沒有存成功喵，再試一次看看';

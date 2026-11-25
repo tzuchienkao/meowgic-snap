@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   BILL_DENOMINATIONS,
   buildSampleCsv,
@@ -17,7 +17,13 @@ import { loadMemberPreferences, saveMemberPreferences } from '../../utils/member
 const DEFAULTS = [1000, 500, 100, 50, 10, 5, 1];
 
 describe('utils/preferences', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('defaults to names mode with the 7 common denominations', () => {
     expect(createDefaultPreferences()).toEqual({ includesNames: true, denominations: DEFAULTS });
@@ -63,13 +69,98 @@ describe('utils/preferences', () => {
     expect(readStoredPreferences(GUEST_PREFERENCES_KEY)).toEqual({ includesNames: false, denominations: [100, 1] });
   });
 
-  it('member storage stubs use the member-scoped key until Supabase is wired up', async () => {
-    expect(memberPreferencesKey('u1')).toBe('preferences:u1');
-    await saveMemberPreferences({ id: 'u1' }, { includesNames: false, denominations: [500, 1] });
-    expect(JSON.parse(localStorage.getItem('preferences:u1')!)).toEqual({ includesNames: false, denominations: [500, 1] });
-    expect(localStorage.getItem(GUEST_PREFERENCES_KEY)).toBeNull();
-    expect(await loadMemberPreferences({ id: 'u1' })).toEqual({ includesNames: false, denominations: [500, 1] });
-    expect(await loadMemberPreferences({ id: 'u2' })).toEqual(createDefaultPreferences());
+  it('member preferences are loaded from Supabase getUser() with server-fresh data', async () => {
+    // Mock useNuxtApp for Supabase client
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: {
+            user: {
+              id: 'u1',
+              user_metadata: {
+                preferences: { includesNames: false, denominations: [500, 1] },
+              },
+            },
+          },
+        })),
+        updateUser: vi.fn(async () => ({ error: null })),
+      },
+    };
+    vi.stubGlobal('useNuxtApp', () => ({ $supabase: mockSupabase }));
+
+    // Load from Supabase
+    expect(await loadMemberPreferences({ id: 'u1' })).toEqual({
+      includesNames: false,
+      denominations: [500, 1],
+    });
+
+    // Save to Supabase
+    await saveMemberPreferences({ id: 'u1' }, { includesNames: true, denominations: [1] });
+    expect(mockSupabase.auth.updateUser).toHaveBeenCalledWith({
+      data: { preferences: { includesNames: true, denominations: [1] } },
+    });
+  });
+
+  it('member load fails if the authenticated user does not match the requested user', async () => {
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: { user: { id: 'u2', user_metadata: {} } },
+        })),
+      },
+    };
+    vi.stubGlobal('useNuxtApp', () => ({ $supabase: mockSupabase }));
+
+    await expect(loadMemberPreferences({ id: 'u1' })).rejects.toThrow(
+      'Authenticated user (u2) does not match requested user (u1)',
+    );
+  });
+
+  it('member load rethrows the getUser error instead of reporting an account mismatch', async () => {
+    localStorage.setItem('preferences:u1', JSON.stringify({ includesNames: false, denominations: [500, 1] }));
+    const networkError = new Error('Failed to fetch');
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user: null }, error: networkError })),
+        updateUser: vi.fn(async () => ({ error: null })),
+      },
+    };
+    vi.stubGlobal('useNuxtApp', () => ({ $supabase: mockSupabase }));
+
+    await expect(loadMemberPreferences({ id: 'u1' })).rejects.toBe(networkError);
+    expect(mockSupabase.auth.updateUser).not.toHaveBeenCalled(); // no migration on a failed read
+  });
+
+  it('member load migrates localStorage preferences to Supabase on first load', async () => {
+    // Save to localStorage first
+    localStorage.setItem('preferences:u1', JSON.stringify({ includesNames: false, denominations: [500, 1] }));
+
+    // Mock Supabase: empty preferences, but updateUser succeeds
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: {
+            user: {
+              id: 'u1',
+              user_metadata: { preferences: undefined }, // No Supabase data yet
+            },
+          },
+        })),
+        updateUser: vi.fn(async () => ({ error: null })),
+      },
+    };
+    vi.stubGlobal('useNuxtApp', () => ({ $supabase: mockSupabase }));
+
+    // Load: should return localStorage value and migrate it
+    expect(await loadMemberPreferences({ id: 'u1' })).toEqual({
+      includesNames: false,
+      denominations: [500, 1],
+    });
+
+    // The migration write is fire-and-forget, but updateUser is called right away
+    expect(mockSupabase.auth.updateUser).toHaveBeenCalledWith({
+      data: { preferences: { includesNames: false, denominations: [500, 1] } },
+    });
   });
 
   it('builds a CRLF sample CSV for each mode', () => {

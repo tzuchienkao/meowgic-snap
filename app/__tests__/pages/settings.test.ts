@@ -11,6 +11,8 @@ import AppIllustrationSlot from '../../components/app/IllustrationSlot/Illustrat
 import AppInput from '../../components/app/Input/Input.vue';
 import AppPreferencesForm from '../../components/app/PreferencesForm/PreferencesForm.vue';
 import SettingsPage from '../../pages/settings.vue';
+import { MEMBER_SAVE_DEBOUNCE_MS } from '../../composables/usePreferences';
+import { createFakeSupabase, type FakeSupabase } from '../helpers/fakeSupabase';
 
 interface ITestUser {
   id: string;
@@ -27,6 +29,7 @@ let userRef: Ref<ITestUser | null>;
 let errorRef: Ref<string | null>;
 let updateUserName: ReturnType<typeof vi.fn>;
 let showToast: ReturnType<typeof vi.fn>;
+let supabase: FakeSupabase;
 let wrapper: VueWrapper | undefined;
 
 const mountPage = () => {
@@ -65,12 +68,15 @@ beforeEach(() => {
   vi.stubGlobal('useState', useStateStub);
   vi.stubGlobal('useAuth', () => ({ user: userRef, updateUserName, error: errorRef }));
   vi.stubGlobal('useToast', () => ({ showToast }));
+  supabase = createFakeSupabase(() => userRef.value?.id ?? null);
+  vi.stubGlobal('useNuxtApp', () => ({ $supabase: supabase }));
 });
 
 afterEach(() => {
   wrapper?.unmount();
   wrapper = undefined;
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('pages/settings.vue', () => {
@@ -205,10 +211,17 @@ describe('pages/settings.vue', () => {
       expect(card.find('.preferences-card__saved').text()).toBe('已自動儲存');
       expect(card.find('.app-preferences-form').exists()).toBe(true);
 
+      vi.useFakeTimers();
       const twenty = card.findAll('[role="checkbox"]').find((c) => c.text() === 'NT$20')!;
       await twenty.trigger('click');
-      expect(JSON.parse(localStorage.getItem('preferences:u1')!).denominations).toContain(20);
+      expect(twenty.attributes('aria-checked')).toBe('true');
+
+      // Saved to the member's account after the debounce, never to the guest key
+      expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(MEMBER_SAVE_DEBOUNCE_MS);
+      expect((supabase.metadata.u1!.preferences as { denominations: number[] }).denominations).toContain(20);
       expect(localStorage.getItem('preferences')).toBeNull();
     });
+
   });
 });

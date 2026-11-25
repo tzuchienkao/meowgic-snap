@@ -31,6 +31,7 @@ describe('PreferencesForm', () => {
     localStorage.clear();
     vi.stubGlobal('useState', useStateStub);
     vi.stubGlobal('useAuth', () => ({ user: userRef }));
+    vi.stubGlobal('useToast', () => ({ showToast: vi.fn() }));
   });
 
   afterEach(() => {

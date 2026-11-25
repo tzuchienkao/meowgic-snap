@@ -15,6 +15,7 @@ import AppDialog from '../../components/app/Dialog/Dialog.vue';
 import AppCheckbox from '../../components/app/Checkbox/Checkbox.vue';
 import AppPreferencesForm from '../../components/app/PreferencesForm/PreferencesForm.vue';
 import IndexPage from '../../pages/index.vue';
+import { createFakeSupabase } from '../helpers/fakeSupabase';
 
 // Simple pass-through stub for app-cat-ear-card exposing its tone prop
 const AppCatEarCardStub = defineComponent({
@@ -122,6 +123,10 @@ beforeEach(() => {
   vi.stubGlobal('navigateTo', navigateToMock);
   showToastMock = vi.fn();
   vi.stubGlobal('useToast', () => ({ showToast: showToastMock }));
+  // Member preferences load from Supabase; with nothing there yet they are migrated from
+  // localStorage `preferences:<id>`, which is how these tests seed them.
+  const supabase = createFakeSupabase(() => userRef.value?.id ?? null);
+  vi.stubGlobal('useNuxtApp', () => ({ $supabase: supabase }));
 });
 
 afterEach(() => {
