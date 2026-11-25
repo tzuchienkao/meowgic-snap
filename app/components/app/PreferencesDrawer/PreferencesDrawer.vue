@@ -35,7 +35,8 @@
       </div>
       <div class="app-preferences-drawer__foot">
         <app-button variant="primary" full label="喵不負責存檔(=ΦωΦ=)" :disabled="!isDirty" @click="save" />
-        <span class="text-xs text-muted">設定只存在這個瀏覽器喵（登入就幫你記住）</span>
+        <!-- TODO: 登入功能尚未開放 -->
+        <!-- <span class="text-xs text-muted">設定只存在這個瀏覽器喵（登入就幫你記住）</span> -->
       </div>
     </aside>
   </Transition>
