@@ -29,7 +29,7 @@ const { tone = 'surface', size = 'card' } = defineProps<{
 
 @layer components {
   /* mt-3 leaves room for the ears, which stick out 12px above the card */
-  .app-cat-ear-card { @apply relative mt-3; }
+  .app-cat-ear-card { @apply relative mt-4; }
 
   .app-cat-ear-card__ear {
     @apply absolute -top-3 w-7 h-7 rounded-sm rotate-45;
