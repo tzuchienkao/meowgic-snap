@@ -136,14 +136,13 @@
                   :disabled="!canCalculate || isProcessing"
                   @click="onCalculateClick"
                 />
-                <!-- TODO: 登入功能尚未開放 -->
-                <!-- <app-button
+                <app-button
                   variant="strong"
                   full
                   label="登入存檔 ฅ^•ﻌ•^ฅ"
                   :disabled="isProcessing"
                   @click="onLoginSaveClick"
-                /> -->
+                />
               </template>
               <app-button
                 v-else

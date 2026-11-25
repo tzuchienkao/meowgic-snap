@@ -66,7 +66,7 @@ describe('PreferencesDrawer (guest 偏好設定)', () => {
     expect(panel(w).exists()).toBe(false);
   });
 
-  it('opens a labelled modal panel with the stacked form, and the save button', async () => {
+  it('opens a labelled modal panel with the stacked form, the save button and the browser-only note', async () => {
     const w = mountDrawer();
     await tab(w).trigger('click');
     expect(tab(w).attributes('aria-expanded')).toBe('true');
@@ -78,6 +78,7 @@ describe('PreferencesDrawer (guest 偏好設定)', () => {
     expect(p.attributes('aria-labelledby')).toBe(title.attributes('id'));
     expect(w.find('.form-stub').attributes('data-stacked')).toBe('true');
     expect(saveButton(w).text()).toBe('喵不負責存檔(=ΦωΦ=)');
+    expect(w.find('.app-preferences-drawer__foot').text()).toContain('設定只存在這個瀏覽器喵（登入就幫你記住）');
   });
 
   describe('save button', () => {

@@ -1,8 +1,7 @@
 <template>
   <desktop-wrapper>
     <app-header>
-      <!-- TODO: 登入功能尚未開放 -->
-      <!-- <template v-slot:menu>
+      <template v-slot:menu>
         <app-button
           class="login-button"
           variant="surface"
@@ -11,7 +10,7 @@
           @click="openModal"
         >
         </app-button>
-      </template> -->
+      </template>
     </app-header>
     <main>
       <slot />
