@@ -670,6 +670,10 @@ const onCopyRestClick = async () => {
   const count = extraCount.value;
   const text = entrySplit.value.lines.slice(MAX_ENTRIES).join('\n');
   const copied = await copyText(text);
+  gtag('event', AnalyticsEvent.CopyRest, {
+    result: copied ? AnalyticsResult.Success : AnalyticsResult.Failed,
+    entry_count: count,
+  });
   if (!copied) {
     copyBox.value = { title: `複製剩下的 ${formatAmount(count)} 筆`, text };
     return;

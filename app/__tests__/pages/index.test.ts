@@ -1278,6 +1278,7 @@ describe('pages/index.vue', () => {
         await clickButton(wrapper, '複製第 1,001 筆之後的 248 筆');
 
         expect(writeText).toHaveBeenCalledWith(restOf(1248));
+        expect(gtagMock).toHaveBeenCalledWith('event', 'copy_rest', { result: 'success', entry_count: 248 });
         expect(findButton(wrapper, '已複製 ✓')).toBeDefined();
         expect(wrapper.find('.app-dialog').exists()).toBe(false);
 
@@ -1313,6 +1314,7 @@ describe('pages/index.vue', () => {
 
         await clickButton(wrapper, '複製第 1,001 筆之後的 248 筆');
 
+        expect(gtagMock).toHaveBeenCalledWith('event', 'copy_rest', { result: 'failed', entry_count: 248 });
         const dialog = wrapper.find('.app-dialog');
         expect(dialog.exists()).toBe(true);
         expect(dialog.find('.app-dialog__title').text()).toBe('複製剩下的 248 筆');
