@@ -183,7 +183,7 @@ describe('pages/settings.vue', () => {
       expect(panel.attributes('role')).toBe('alertdialog');
       expect(w.find('.app-dialog__scrim').classes()).toContain('app-dialog__scrim--strong');
       expect(w.find('.app-dialog__title').text()).toBe('確定要刪除帳號？');
-      expect(panel.find('.app-illustration-slot').text()).toContain('貓咪插畫：緊抓帳本不放');
+      expect(panel.find('.app-illustration-slot img').attributes('alt')).toBe('貓咪插畫：緊抓帳本不放');
       expect(panel.find('.delete-dialog__text').text()).toBe('帳號和全部紀錄都會永久刪除，救不回來喵。');
 
       const confirm = panel.find('.delete-dialog__actions button');

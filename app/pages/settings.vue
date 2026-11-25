@@ -79,7 +79,9 @@
       title="確定要刪除帳號？"
       @close="isDeleteDialogOpen = false"
     >
-      <app-illustration-slot class="h-30" label="貓咪插畫：緊抓帳本不放" />
+      <app-illustration-slot class="delete-dialog-placeholder">
+        <img src="~/assets/images/cats-holding-book.svg" class="h-30" alt="貓咪插畫：緊抓帳本不放" />
+      </app-illustration-slot>
       <p class="delete-dialog__text">{{ DELETE_WARNING }}</p>
       <div class="delete-dialog__actions">
         <app-button variant="danger" full label="刪除帳號" @click="onDeleteConfirmClick" />
@@ -199,6 +201,10 @@ const onDeleteConfirmClick = () => {
   @apply text-link underline underline-offset-2 hover:text-link-hover cursor-pointer;
 }
 
+.delete-dialog-placeholder {
+  @apply h-30;
+  background: transparent;
+}
 .delete-dialog__text {
   @apply text-center text-body-md text-ink;
 }
