@@ -1,4 +1,5 @@
 import tailwindcss from "@tailwindcss/vite";
+import { SITE_TITLE } from "./app/constants/site";
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -14,6 +15,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      title: SITE_TITLE,
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
