@@ -672,12 +672,20 @@ describe('pages/index.vue', () => {
       expect(navigateToMock).not.toHaveBeenCalled();
     });
 
+    it('says under 計算並存檔 that the result is kept in the cloud, until it is calculated', async () => {
+      const wrapper = mountPage();
+      expect(wrapper.find('.save-note').text()).toBe('計算結果（含姓名與金額）會存在雲端 2 年，只有你看得到');
+      await typeAndCalculate(wrapper, '張三,100', '計算並存檔');
+      expect(wrapper.find('.save-note').exists()).toBe(false);
+    });
+
     it('reacts to the user ref changing at runtime', async () => {
       const wrapper = mountPage();
       userRef.value = null;
       await nextTick();
       expect(findButton(wrapper, '直接計算')).toBeDefined();
       expect(wrapper.find('.current-settings').exists()).toBe(false);
+      expect(wrapper.find('.save-note').exists()).toBe(false);
     });
   });
 
@@ -970,6 +978,13 @@ describe('pages/index.vue', () => {
       await loadPrefs();
       const wrapper = mountPage();
       expect(wrapper.find('.current-settings button').text()).toContain('目前設定：純金額 · 4 種面額');
+    });
+
+    it('member in amount-only mode: the cloud note leaves names out', async () => {
+      userRef.value = { id: 'u1' };
+      savePreferences('preferences:u1', { includesNames: false, denominations: [2000, 1000, 100, 1] });
+      await loadPrefs();
+      expect(mountPage().find('.save-note').text()).toBe('計算結果會存在雲端 2 年，只有你看得到');
     });
 
     it('member pill uses the member preferences', async () => {

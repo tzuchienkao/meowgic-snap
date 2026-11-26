@@ -154,6 +154,8 @@
               />
             </template>
           </div>
+          <!-- Members: tell them what 計算並存檔 keeps in the cloud (docs/database.md §5) -->
+          <p v-if="isLogin && !resultState.isCalculated" class="save-note">{{ saveNote }}</p>
         </div>
       </app-cat-ear-card>
 
@@ -383,7 +385,9 @@ const EXPORT_MESSAGES = {
 } as const;
 
 const RECORD_MESSAGES = {
-  saveFailed: '紀錄沒有存成功喵'
+  saveFailed: '紀錄沒有存成功喵',
+  saveNoteWithNames: '計算結果（含姓名與金額）會存在雲端 2 年，只有你看得到',
+  saveNoteAmountOnly: '計算結果會存在雲端 2 年，只有你看得到'
 } as const;
 
 const nextBatchMessage = (count: number) => `已帶入下一批 ${formatAmount(count)} 筆並算好了喵`;
@@ -395,6 +399,9 @@ const activeDenominations = computed(() => preferences.value.denominations);
 const denominations = computed(() => activeDenominations.value.length);
 const includesNames = computed(() => preferences.value.includesNames);
 const formatLabel = computed(() => (includesNames.value ? '姓名,金額' : '純金額'));
+const saveNote = computed(() =>
+  includesNames.value ? RECORD_MESSAGES.saveNoteWithNames : RECORD_MESSAGES.saveNoteAmountOnly
+);
 
 const isProcessing = ref(false);
 const moneySnapInput = ref('');
@@ -959,5 +966,8 @@ const onLoginSaveClick = async () => {
 
 .action-buttons {
   @apply flex grow gap-2;
+}
+.save-note {
+  @apply text-center text-helper text-muted;
 }
 </style>
