@@ -92,4 +92,11 @@ describe('IllustrationSlot (design system)', () => {
     expect(w.attributes('style')).toContain('--stripe: 10px');
     expect(w.classes()).toContain('app-illustration-slot--card');
   });
+
+  it('shows the stripes only as a placeholder (with a label)', () => {
+    expect(mount(IllustrationSlot, { props: { label: 'x' } }).classes()).toContain('app-illustration-slot--placeholder');
+    const withImage = mount(IllustrationSlot, { props: { stripe: 10 }, slots: { default: '<img alt="貓咪插畫" />' } });
+    expect(withImage.classes()).not.toContain('app-illustration-slot--placeholder');
+    expect(withImage.attributes('style')).toBeUndefined();
+  });
 });

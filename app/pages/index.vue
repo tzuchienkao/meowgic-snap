@@ -191,7 +191,6 @@
           v-else-if="!resultState.isCalculated"
           class="result-placeholder"
           radius="card"
-          :stripe="0"
         >
           <img src="~/assets/images/tabby-cat-lying-stretched.svg" alt="貓咪插畫：橘白貓趴著等" />
 
