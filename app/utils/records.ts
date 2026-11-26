@@ -1,5 +1,6 @@
 import { InputFormat, type INewRecord } from '~/types/record';
 import { FIRST_BATCH } from '~/constants/record';
+import type { IDashboardData } from '~/types/dashboard';
 
 export function buildRecordName(date: Date, batch: number): string {
   const formattedDate = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
@@ -32,4 +33,15 @@ export async function insertRecord(record: INewRecord): Promise<string> {
 
 export function toInputFormat(includesNames: boolean): InputFormat {
   return includesNames ? InputFormat.NameAndAmount : InputFormat.AmountOnly;
+}
+
+export async function fetchDashboard(): Promise<IDashboardData> {
+  const supabase = useNuxtApp().$supabase;
+  const { error, data } = await supabase.rpc('get_dashboard_summary');
+
+  if (error) {
+    throw error;
+  }
+  
+  return data as IDashboardData;
 }

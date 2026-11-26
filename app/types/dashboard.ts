@@ -28,8 +28,8 @@ export interface IRecentRecord {
 export interface IDashboardData {
   /** NT$ total across all exchanges */
   totalAmount: number;
-  /** ISO 8601 date the accumulation started */
-  startedAt: string;
+  /** ISO 8601 date the accumulation started; null when there are no records yet */
+  startedAt: string | null;
   /** Oldest → newest, one per month (the chart shows them all) */
   monthlyTotals: IMonthlyTotal[];
   denominationTotals: IDenominationTotal[];

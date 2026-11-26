@@ -4,12 +4,20 @@
       <h1 class="text-ink text-h1">儀表板</h1>
       <p class="text-muted text-helper mt-1">喵奴才，這是你到目前為止的兌換紀錄喵</p>
     </div>
+    <app-cat-ear-card v-if="!hasRecords || hasError">
+      <app-illustration-slot class="dashboard-empty" radius="card">
+        <img src="~/assets/images/cats-food-can.svg" alt="貓咪插畫：抱著空空的存錢筒" class="h-30" />
+        <p class="dashboard-empty__text">{{ hasError ? ERROR_MESSAGE : EMPTY_MESSAGE }}</p>
+        <app-button v-if="!hasRecords && !hasError" variant="primary" size="md" @click="onGoHomeClick">去首頁算一次</app-button>
+        <app-button v-if="hasError" variant="primary" size="md" @click="onRetryClick">重試</app-button>
+      </app-illustration-slot>
+    </app-cat-ear-card>
     <!-- DS: one column under 900px, two columns from 900px (desktop: breakpoint) -->
-    <div class="page-dashboard__body grid grid-cols-1 items-start gap-5 desktop:grid-cols-2">
+    <div v-else class="page-dashboard__body grid grid-cols-1 items-start gap-5 desktop:grid-cols-2">
       <div class="page-dashboard__column">
         <!-- 累計兌換總金額 -->
         <app-total-card size="lg" label="累計兌換總金額" :amount="formatNumber(totalAmount)">
-          <span class="total-card__since">自 {{ formatDate(startedAt) }} 開始累計</span>
+          <span v-if="startedAt" class="total-card__since">自 {{ formatDate(startedAt) }} 開始累計</span>
         </app-total-card>
 
         <!-- 每月金額趨勢 -->
@@ -94,9 +102,20 @@ import { isBill } from '~/utils/moneyParser';
 const BAR_MAX_HEIGHT = 150;
 const BAR_MIN_HEIGHT = 8;
 const EMPTY_VALUE_LABEL = '—';
+const EMPTY_MESSAGE = '還沒有兌換紀錄喵';
+const ERROR_MESSAGE = '資料沒有載入成功喵';
 
 const router = useRouter();
-const { totalAmount, startedAt, monthlyTotals, denominationTotals, recentRecords } = useDashboard();
+const { totalAmount, startedAt, monthlyTotals, denominationTotals, recentRecords, error, refresh } = await useDashboard();
+
+/** The accumulation starts with the first record, so no start date = no records */
+const hasRecords = computed(() => {
+  return startedAt.value !== null
+});
+
+const hasError = computed(() => {
+  return !!error.value;
+});
 
 const formatNumber = (value: number) => value.toLocaleString('en-US');
 const pad2 = (value: number) => String(value).padStart(2, '0');
@@ -138,6 +157,14 @@ const recentRows = computed(() =>
   }))
 );
 
+const onGoHomeClick = () => {
+  router.push({ name: RouteName.Index });
+};
+
+const onRetryClick = () => {
+  refresh();
+};
+
 const onAllRecordsClick = () => {
   router.push({ name: RouteName.Logs });
 };
@@ -150,6 +177,13 @@ const onRecordClick = () => {
 
 <style scoped>
 @reference "~/assets/css/main.css";
+
+.dashboard-empty {
+  @apply p-6 min-h-70;
+}
+.dashboard-empty__text {
+  @apply text-lg;
+}
 
 .page-dashboard__column {
   @apply flex flex-col gap-5;
