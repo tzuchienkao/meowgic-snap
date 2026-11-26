@@ -15,7 +15,7 @@ import AppDialog from '../../components/app/Dialog/Dialog.vue';
 import AppCheckbox from '../../components/app/Checkbox/Checkbox.vue';
 import AppPreferencesForm from '../../components/app/PreferencesForm/PreferencesForm.vue';
 import IndexPage from '../../pages/index.vue';
-import { createFakeSupabase } from '../helpers/fakeSupabase';
+import { createFakeSupabase, type FakeSupabase } from '../helpers/fakeSupabase';
 
 // Simple pass-through stub for app-cat-ear-card exposing its tone prop
 const AppCatEarCardStub = defineComponent({
@@ -45,6 +45,7 @@ let themeRef: Ref<'light' | 'dark'>;
 let navigateToMock: ReturnType<typeof vi.fn>;
 let showToastMock: ReturnType<typeof vi.fn>;
 let gtagMock: ReturnType<typeof vi.fn>;
+let supabase: FakeSupabase;
 // Minimal stand-in for Nuxt's useState (usePreferences keeps its cache there)
 let stateStore: Record<string, Ref<unknown>>;
 const useStateStub = <T>(key: string, init: () => T) => {
@@ -128,7 +129,7 @@ beforeEach(() => {
   vi.stubGlobal('useGtag', () => ({ gtag: gtagMock }));
   // Member preferences load from Supabase; with nothing there yet they are migrated from
   // localStorage `preferences:<id>`, which is how these tests seed them.
-  const supabase = createFakeSupabase(() => userRef.value?.id ?? null);
+  supabase = createFakeSupabase(() => userRef.value?.id ?? null);
   vi.stubGlobal('useNuxtApp', () => ({ $supabase: supabase }));
 });
 
@@ -1443,6 +1444,124 @@ describe('pages/index.vue', () => {
 
       await clickButton(wrapper, '只算前 1,000 筆並存檔');
       expect(notice(wrapper).text()).toContain('還有 1 筆等下一批喵');
+    });
+  });
+
+  describe('saving records (members)', () => {
+    // 張三 20,499 + 李四 3,888 with the default 7 denominations
+    const INPUT = '張三,18500\n李四,3888\n張三,1999';
+
+    const click = async (wrapper: VueWrapper, label: string) => {
+      const btn = findButton(wrapper, label);
+      expect(btn).toBeDefined();
+      await btn!.trigger('click');
+      await flushPromises();
+    };
+    const savedRecords = () => supabase.tables.records ?? [];
+
+    beforeEach(() => {
+      userRef.value = { id: 'u1' };
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-26T04:00:00Z')); // 12:00 in Taiwan
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('計算並存檔 saves one record with the calculation result', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, INPUT, '計算並存檔');
+
+      expect(savedRecords()).toEqual([
+        {
+          id: expect.any(String),
+          user_id: 'u1',
+          name: '2026/11/26 兌換',
+          input_format: 'name_amount',
+          entry_count: 3,
+          total_amount: 24387,
+          denominations: [1000, 500, 100, 50, 10, 5, 1],
+          denomination_counts: { 1000: 23, 500: 1, 100: 7, 50: 2, 10: 7, 5: 2, 1: 7 },
+          rows: [
+            { name: '張三', total: 20499 },
+            { name: '李四', total: 3888 },
+          ],
+        },
+      ]);
+      expect(showToastMock).not.toHaveBeenCalledWith('紀錄沒有存成功喵');
+    });
+
+    it('saves amount-only calculations as input_format "amount"', async () => {
+      localStorage.setItem('preferences:u1', JSON.stringify({ includesNames: false, denominations: [1000, 500, 100, 50, 10, 5, 1] }));
+      const { usePreferences } = await import('../../composables/usePreferences');
+      await usePreferences().loadPreferences();
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, '金額\n1500\n3', '計算並存檔');
+
+      expect(savedRecords()).toHaveLength(1);
+      expect(savedRecords()[0]).toMatchObject({ input_format: 'amount', entry_count: 2, total_amount: 1503 });
+    });
+
+    it('over 1,000 entries: each batch is its own record, named 兌換, 兌換 #2, 兌換 #3', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, lines(2300), '計算並存檔');
+      expect(savedRecords()).toHaveLength(0); // the too-many card calculates nothing
+
+      await click(wrapper, '只算前 1,000 筆並存檔');
+      await click(wrapper, '算下一批 1,300 筆 ›'); // too many again → nothing saved
+      await click(wrapper, '只算前 1,000 筆並存檔');
+      await click(wrapper, '算下一批 300 筆 ›');
+
+      expect(savedRecords().map(({ name, entry_count }) => ({ name, entry_count }))).toEqual([
+        { name: '2026/11/26 兌換', entry_count: 1000 },
+        { name: '2026/11/26 兌換 #2', entry_count: 1000 },
+        { name: '2026/11/26 兌換 #3', entry_count: 300 },
+      ]);
+    });
+
+    it('a new calculation after 清除資料 starts again from the first batch name', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, lines(1248), '計算並存檔');
+      await click(wrapper, '只算前 1,000 筆並存檔');
+      await click(wrapper, '算下一批 248 筆 ›');
+      await click(wrapper, '清除資料，算下一筆');
+      await typeAndCalculate(wrapper, INPUT, '計算並存檔');
+
+      expect(savedRecords().map((record) => record.name)).toEqual([
+        '2026/11/26 兌換',
+        '2026/11/26 兌換 #2',
+        '2026/11/26 兌換',
+      ]);
+    });
+
+    it('a failed save shows a toast and keeps the result on screen', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      supabase.from.mockReturnValueOnce({
+        insert: () => ({ select: () => ({ single: async () => ({ data: null, error: new Error('offline') }) }) }),
+      } as unknown as ReturnType<FakeSupabase['from']>);
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, INPUT, '計算並存檔');
+
+      expect(showToastMock).toHaveBeenCalledWith('紀錄沒有存成功喵');
+      expect(summaryCard(wrapper).find('.app-total-card__amount-value').text()).toBe('24,387');
+    });
+
+    it('a failed calculation saves nothing', async () => {
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, 'bad', '計算並存檔');
+      expect(savedRecords()).toHaveLength(0);
+    });
+
+    it('guests never save records', async () => {
+      userRef.value = null;
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, INPUT, '直接計算');
+      await click(wrapper, '清除資料，算下一筆');
+      await typeAndCalculate(wrapper, lines(1248), '直接計算');
+      await click(wrapper, '只算前 1,000 筆');
+      await click(wrapper, '算下一批 248 筆 ›');
+      expect(supabase.from).not.toHaveBeenCalled();
     });
   });
 

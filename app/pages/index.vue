@@ -314,11 +314,17 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+
 import { CurrencyUnit } from '~/constants/currency';
 import { RouteName } from '~/constants/navigation';
+import { AnalyticsEvent, AnalyticsResult } from '~/constants/analytics';
+import { BATCH_DEFAULT, BATCH_OFFSET } from '~/constants/record';
+
 import { usePreferences } from '~/composables/usePreferences';
-import { formatDenominationLabel } from '~/utils/preferences';
+
 import { DenomCellState, DenomKind } from '~/types/denomination';
+
+import { formatDenominationLabel } from '~/utils/preferences';
 import {
   ALL_DENOMINATIONS,
   calculateDenominations,
@@ -339,7 +345,7 @@ import {
   ExportExt,
 } from '~/utils/exporters';
 import { copyText, createCsvBlob, downloadBlob, drawSlipImage } from '~/utils/download';
-import { AnalyticsEvent, AnalyticsResult } from '~/constants/analytics';
+import { insertRecord, buildRecordName, toInputFormat } from '~/utils/records';
 
 // Composables
 const { user } = useAuth();
@@ -374,7 +380,11 @@ const EXPORT_MESSAGES = {
   imageDone: '明細圖下載好了喵',
   imageFailed: '明細圖下載失敗了喵，再試一次看看',
   csvDone: 'CSV 匯出好了喵',
-  csvFailed: 'CSV 匯出失敗了喵，再試一次看看',
+  csvFailed: 'CSV 匯出失敗了喵，再試一次看看'
+} as const;
+
+const RECORD_MESSAGES = {
+  saveFailed: '紀錄沒有存成功喵'
 } as const;
 
 const nextBatchMessage = (count: number) => `已帶入下一批 ${formatAmount(count)} 筆並算好了喵`;
@@ -386,6 +396,7 @@ const activeDenominations = computed(() => preferences.value.denominations);
 const denominations = computed(() => activeDenominations.value.length);
 const includesNames = computed(() => preferences.value.includesNames);
 const formatLabel = computed(() => (includesNames.value ? '姓名,金額' : '純金額'));
+
 const isProcessing = ref(false);
 const moneySnapInput = ref('');
 const validationErrors = ref<string[]>([]);
@@ -412,6 +423,8 @@ const resultState = ref({
   includesNames: true,
   rows: [] as IResultTotal[],
 });
+
+const saveRecordBatch = ref(BATCH_DEFAULT);
 
 // Computed properties
 // Header row + non-blank entry lines; the count may exceed MAX_ENTRIES (→ "too many" card on calculate)
@@ -623,6 +636,23 @@ const runCalculation = (input: string): boolean => {
   }
 };
 
+const saveRecord = async (batch: number) => {
+  try {
+    await insertRecord({
+      name: buildRecordName(calculatedDate.value ?? new Date(), batch),
+      inputFormat: toInputFormat(resultState.value.includesNames),
+      entryCount: resultState.value.entryCount,
+      totalAmount: resultState.value.totalAmount,
+      denominations: activeDenominations.value,
+      denominationCounts: denominationTotals.value,
+      rows: resultState.value.rows,
+    });
+  } catch (error) {
+    showToast(RECORD_MESSAGES.saveFailed);
+    console.error('Failed to save record:', error);
+  }
+};
+
 // Too many entries: no parsing, clear the old result and show the "too many" card
 const showOver = () => {
   validationErrors.value = [];
@@ -632,11 +662,18 @@ const showOver = () => {
 
 const onCalculateClick = () => {
   resetBatchState();
+  saveRecordBatch.value = BATCH_DEFAULT;
+
   if (entryCount.value > MAX_ENTRIES) {
     showOver();
     return;
   }
-  runCalculation(moneySnapInput.value);
+
+  const shouldSaveRecord = runCalculation(moneySnapInput.value) && isLogin.value;
+  if (shouldSaveRecord) {
+    saveRecordBatch.value += BATCH_OFFSET;
+    saveRecord(saveRecordBatch.value);
+  }
 };
 
 // Calculate the first MAX_ENTRIES lines (header kept) and keep the rest as the next batch
@@ -644,26 +681,43 @@ const onCalcFirstClick = () => {
   const { header, lines } = entrySplit.value;
   const firstBatch = lines.slice(0, MAX_ENTRIES);
   const rest = lines.slice(MAX_ENTRIES);
+  
   resetBatchState();
+  
   const input = (header ? [header, ...firstBatch] : firstBatch).join('\n');
+
   if (runCalculation(input)) {
     truncatedCount.value = rest.length;
     pendingLines.value = rest;
+
+    if (isLogin.value) {
+      saveRecordBatch.value += BATCH_OFFSET;
+      saveRecord(saveRecordBatch.value);
+    }
   }
 };
 
 // The pending lines become the new input: too many again → "too many" card, otherwise calculate
 const onNextBatchClick = () => {
   const rest = pendingLines.value;
-  if (!rest.length) return;
-  resetBatchState();
-  moneySnapInput.value = rest.join('\n');
-  if (rest.length > MAX_ENTRIES) {
-    showOver();
-    return;
+
+  if (rest.length) {
+    resetBatchState();
+    moneySnapInput.value = rest.join('\n');
+    if (rest.length > MAX_ENTRIES) {
+      showOver();
+      return;
+    }
+
+    if (runCalculation(moneySnapInput.value)) {
+      showToast(nextBatchMessage(rest.length));
+
+      if (isLogin.value) {
+        saveRecordBatch.value += BATCH_OFFSET;
+        saveRecord(saveRecordBatch.value);
+      }
+    }
   }
-  // TODO(records): members should save the next batch as a new record once records exist
-  if (runCalculation(moneySnapInput.value)) showToast(nextBatchMessage(rest.length));
 };
 
 const onCopyRestClick = async () => {
