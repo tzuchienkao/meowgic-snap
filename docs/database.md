@@ -75,7 +75,7 @@
 | 全部紀錄的 `denomination_counts` 依面額加總 | 儀表板各面額累計 |
 
 - 索引：`(user_id, created_at desc)`，涵蓋以上所有「某人、依時間」的查詢。
-- 儀表板的彙總建議做成一個 SQL 函式（RPC，以呼叫者身分執行，仍受 RLS 保護），一次回傳 `IDashboardData` 需要的全部資料，前端只要呼叫一次。格式見 `app/types/dashboard.ts`。
+- 儀表板的彙總做成 SQL 函式 `get_dashboard_summary()`（RPC，以呼叫者身分執行，仍受 RLS 保護），一次回傳 `IDashboardData` 需要的全部資料，前端只要呼叫一次。格式見 `app/types/dashboard.ts`。沒有紀錄時 `startedAt` 為 `null`、總額 0、清單為空，近 6 個月仍各回傳 0。只有登入的會員能呼叫。
 
 ## 5. 保存期限與個資
 
@@ -102,6 +102,7 @@ SQL 存在專案的 `supabase/migrations/`（Supabase CLI 預設讀取的位置�
 
 1. [`20261126000000_create_records.sql`](../supabase/migrations/20261126000000_create_records.sql)：資料表、`updated_at` trigger、索引、RLS。
 2. [`20261126000100_schedule_delete_old_records.sql`](../supabase/migrations/20261126000100_schedule_delete_old_records.sql)：啟用 `pg_cron`，建立每天刪除超過 2 年紀錄的排程。要在第 1 份之後執行，因為它會刪 `records` 的資料。
+3. [`20261127000000_create_dashboard_summary.sql`](../supabase/migrations/20261127000000_create_dashboard_summary.sql)：儀表板彙總函式 `get_dashboard_summary()`。
 
 之後要修改資料庫（例如加欄位、改排程時間），不要改已經執行過的檔案，而是新增一份時間戳記更晚的 migration。
 
@@ -109,5 +110,5 @@ SQL 存在專案的 `supabase/migrations/`（Supabase CLI 預設讀取的位置�
 
 1. 建立 `records` 資料表、RLS 與排程刪除（本文件第 7 節）。
 2. 首頁存檔：新增 `app/utils/records.ts` 的 `insertRecord()`，會員計算成功後呼叫（分批時每一批呼叫一次，名稱加上批次）；「計算並存檔」附近加上存在雲端的說明。
-3. 儀表板：建立彙總用的 SQL 函式，把 `app/composables/useDashboard.ts` 的假資料換成它的結果。
+3. 儀表板：執行彙總函式的 migration；`app/utils/records.ts` 新增 `fetchDashboard()`（`supabase.rpc('get_dashboard_summary')`），把 `app/composables/useDashboard.ts` 的假資料換成它的結果（`useAsyncData`，伺服器渲染時就抓好）。沒有紀錄時顯示插畫佔位的空狀態。
 4. 紀錄頁：查詢區間、分頁、改名、匯出 CSV，註明「這不是會計憑證」。
