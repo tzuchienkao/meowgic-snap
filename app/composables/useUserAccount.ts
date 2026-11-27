@@ -15,7 +15,11 @@ export const useUserAccount = () => {
 
   const goToSettings = () => router.push({ name: RouteName.Settings });
 
-  const onLogout = () => logout();
+  /** Logging out on a member-only page leaves it for the home page (guests can't stay there) */
+  const onLogout = async () => {
+    await logout();
+    if (!user.value) await router.push({ name: RouteName.Index });
+  };
 
   return {
     userName,

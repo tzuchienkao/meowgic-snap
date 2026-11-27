@@ -8,6 +8,9 @@ export enum RouteName {
   Settings = 'settings'
 }
 
+/** Pages only a signed-in member can open; middleware/auth.global.ts sends guests home */
+export const MEMBER_ROUTE_NAMES: readonly RouteName[] = [RouteName.Dashboard, RouteName.Logs, RouteName.Settings];
+
 /** Main pages, shown in the header NavPills and the mobile ☰ menu. */
 export const NAVIGATION_ITEMS: readonly INavPillItem[] = [
   { name: RouteName.Index, label: '首頁' },

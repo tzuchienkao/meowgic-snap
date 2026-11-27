@@ -45,12 +45,27 @@ describe('useUserAccount', () => {
     expect(userEmail.value).toBe('');
   });
 
-  it('goToSettings pushes the settings route; onLogout calls logout', () => {
-    const { goToSettings, onLogout } = useUserAccount();
+  it('goToSettings pushes the settings route', () => {
+    const { goToSettings } = useUserAccount();
     goToSettings();
-    onLogout();
     expect(push).toHaveBeenCalledWith({ name: RouteName.Settings });
+  });
+
+  it('onLogout logs out and goes to the home page', async () => {
+    logout.mockImplementation(async () => {
+      userRef.value = null;
+    });
+    const { onLogout } = useUserAccount();
+    await onLogout();
     expect(logout).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith({ name: RouteName.Index });
+  });
+
+  it('stays put when logging out failed', async () => {
+    const { onLogout } = useUserAccount();
+    await onLogout();
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(push).not.toHaveBeenCalled();
   });
 });
 
