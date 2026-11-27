@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCsv,
   buildExportFileName,
+  buildRecordCsv,
+  buildRecordsCsv,
   buildSlipImageModel,
   buildSlipText,
   escapeCsvField,
@@ -10,6 +12,7 @@ import {
 } from '../../utils/exporters';
 import { DEFAULT_DENOMINATIONS } from '../../utils/moneyParser';
 import { DenomKind } from '../../types/denomination';
+import { InputFormat, type IRecordDetail } from '../../types/record';
 
 const EXAMPLE_TOTALS = { 1000: 23, 500: 2, 100: 5, 50: 1, 10: 5, 5: 1, 1: 3 };
 
@@ -105,6 +108,68 @@ describe('buildExportFileName', () => {
     const date = new Date(2026, 0, 5, 3, 7, 9);
     expect(buildExportFileName(ExportExt.Png, date)).toBe('領款明細_20260105-0307.png');
     expect(buildExportFileName(ExportExt.Csv, new Date(2026, 10, 24, 14, 32))).toBe('領款明細_20261124-1432.csv');
+  });
+
+  it('takes another prefix', () => {
+    expect(buildExportFileName(ExportExt.Csv, new Date(2026, 10, 24, 14, 32), '兌換紀錄')).toBe('兌換紀錄_20261124-1432.csv');
+  });
+});
+
+const record = (overrides: Partial<IRecordDetail> = {}): IRecordDetail => ({
+  id: 'r1',
+  name: '10月薪資',
+  createdAt: new Date(2026, 9, 17, 12).toISOString(),
+  entryCount: 2,
+  totalAmount: 1650,
+  inputFormat: InputFormat.NameAndAmount,
+  denominations: [1000, 500, 100, 50],
+  denominationCounts: { 1000: 1, 500: 1, 100: 1, 50: 1 },
+  rows: [
+    { name: '張三', total: 1500 },
+    { name: '李四', total: 150 },
+  ],
+  ...overrides,
+});
+
+describe('buildRecordCsv', () => {
+  it('works each person\'s denominations out again from the denominations the record used', () => {
+    expect(buildRecordCsv(record()).split('\r\n')).toEqual([
+      '姓名,金額,NT$1000,NT$500,NT$100,NT$50',
+      '張三,1500,1,1,0,0',
+      '李四,150,0,0,1,1',
+      '合計,1650,1,1,1,1',
+    ]);
+  });
+
+  it('uses 編號 for an amount-only record', () => {
+    const csv = buildRecordCsv(record({ inputFormat: InputFormat.AmountOnly, rows: [{ name: '第 1 筆', total: 1650 }], entryCount: 1 }));
+    expect(csv.split('\r\n')[0]).toBe('編號,金額,NT$1000,NT$500,NT$100,NT$50');
+    expect(csv.split('\r\n')[1]).toBe('第 1 筆,1650,1,1,1,1');
+  });
+});
+
+describe('buildRecordsCsv', () => {
+  it('lists one row per record with every denomination used, then the totals', () => {
+    const older = record({
+      id: 'r2',
+      name: '=9月獎金',
+      createdAt: new Date(2026, 8, 3, 9).toISOString(),
+      entryCount: 1,
+      totalAmount: 2001,
+      denominations: [2000, 1],
+      denominationCounts: { 2000: 1, 1: 1 },
+    });
+    expect(buildRecordsCsv([record(), older]).split('\r\n')).toEqual([
+      '日期,名稱,筆數,金額,NT$2000,NT$1000,NT$500,NT$100,NT$50,NT$1',
+      '2026/10/17,10月薪資,2,1650,0,1,1,1,1,0',
+      // Names are user text: one starting like a formula is neutralised
+      "2026/09/03,'=9月獎金,1,2001,1,0,0,0,0,1",
+      '合計,,3,3651,1,1,1,1,1,1',
+    ]);
+  });
+
+  it('is just the header and an empty total without records', () => {
+    expect(buildRecordsCsv([]).split('\r\n')).toEqual(['日期,名稱,筆數,金額', '合計,,0,0']);
   });
 });
 

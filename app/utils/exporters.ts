@@ -5,7 +5,8 @@
  */
 import { CURRENCY_PREFIX, CurrencyUnit } from '~/constants/currency';
 import { DenomKind } from '~/types/denomination';
-import { isBill } from '~/utils/moneyParser';
+import { InputFormat, type IRecordCounts, type IRecordDetail } from '~/types/record';
+import { calculateDenominations, isBill } from '~/utils/moneyParser';
 
 export interface IExportRow {
   name: string;
@@ -38,6 +39,11 @@ export const CSV_AMOUNT_HEADER = '金額';
 export const CSV_TOTAL_LABEL = '合計';
 export const CSV_LINE_BREAK = '\r\n';
 export const EXPORT_FILE_PREFIX = '領款明細';
+/** 紀錄頁 匯出這個區間 CSV */
+export const EXPORT_RECORDS_FILE_PREFIX = '兌換紀錄';
+export const CSV_DATE_HEADER = '日期';
+export const CSV_RECORD_NAME_HEADER = '名稱';
+export const CSV_ENTRY_COUNT_HEADER = '筆數';
 
 export enum ExportExt {
   Png = 'png',
@@ -127,12 +133,65 @@ export function buildCsv(input: {
   return table.map((fields) => fields.map(escapeCsvField).join(',')).join(CSV_LINE_BREAK);
 }
 
-/** 領款明細_20261124-1432.png (local time, zero-padded) */
-export function buildExportFileName(ext: ExportExt | string, date: Date): string {
+/** 領款明細_20261124-1432.png (local time, zero-padded); `prefix` swaps 領款明細 (e.g. 兌換紀錄) */
+export function buildExportFileName(ext: ExportExt | string, date: Date, prefix: string = EXPORT_FILE_PREFIX): string {
   const stamp =
     `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}` +
     `-${pad2(date.getHours())}${pad2(date.getMinutes())}`;
-  return `${EXPORT_FILE_PREFIX}_${stamp}.${ext}`;
+  return `${prefix}_${stamp}.${ext}`;
+}
+
+/**
+ * 紀錄頁 匯出這筆 CSV: the same table as the home page export. A record keeps each person's total
+ * only, so their denominations are worked out again from the denominations the record used.
+ */
+export function buildRecordCsv(record: IRecordDetail): string {
+  return buildCsv({
+    rows: record.rows.map((row) => ({
+      name: row.name,
+      total: row.total,
+      items: Object.entries(calculateDenominations(row.total, record.denominations).denominations)
+        .map(([denomination, count]) => ({ denomination: Number(denomination), count }))
+        .filter((item) => item.count > 0),
+    })),
+    totalAmount: record.totalAmount,
+    denominations: record.denominations,
+    includesNames: record.inputFormat === InputFormat.NameAndAmount,
+  });
+}
+
+/**
+ * 紀錄頁 匯出這個區間 CSV (no BOM, CRLF): 日期,名稱,筆數,金額,NT$<every denomination used, large → small>,
+ * one row per record in the given order, then 合計. Dates are local time, e.g. 2026/10/17.
+ */
+export function buildRecordsCsv(records: readonly IRecordCounts[]): string {
+  const columns = largeToSmall([...new Set(records.flatMap((record) => record.denominations))]);
+  const totals: DenominationTotals = {};
+  let totalAmount = 0;
+  let totalEntries = 0;
+
+  const body = records.map((record) => {
+    const date = new Date(record.createdAt);
+    totalAmount += record.totalAmount;
+    totalEntries += record.entryCount;
+    columns.forEach((d) => {
+      totals[d] = (totals[d] ?? 0) + (record.denominationCounts[d] ?? 0);
+    });
+    return [
+      `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`,
+      record.name,
+      record.entryCount,
+      record.totalAmount,
+      ...columns.map((d) => record.denominationCounts[d] ?? 0),
+    ];
+  });
+
+  const table = [
+    [CSV_DATE_HEADER, CSV_RECORD_NAME_HEADER, CSV_ENTRY_COUNT_HEADER, CSV_AMOUNT_HEADER, ...columns.map((d) => `${CURRENCY_PREFIX}${d}`)],
+    ...body,
+    [CSV_TOTAL_LABEL, '', totalEntries, totalAmount, ...columns.map((d) => totals[d] ?? 0)],
+  ];
+  return table.map((fields) => fields.map(escapeCsvField).join(',')).join(CSV_LINE_BREAK);
 }
 
 /** 2026/11/24 14:32:05 (local time) */
