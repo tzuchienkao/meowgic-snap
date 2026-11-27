@@ -8,6 +8,10 @@ export enum AnalyticsEvent {
   ExportCsv = 'export_csv',
   /** 複製第 1,001 筆之後的 N 筆: entry_count is the number of lines copied */
   CopyRest = 'copy_rest',
+  /** 紀錄頁 匯出這筆 CSV: entry_count is the record's 筆數 */
+  ExportRecordCsv = 'export_record_csv',
+  /** 紀錄頁 匯出這個區間 CSV: record_count is the number of records exported */
+  ExportRangeCsv = 'export_range_csv',
 }
 
 /** Value of the `result` parameter on export events. */
