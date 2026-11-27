@@ -191,6 +191,7 @@
 
 <script setup lang="ts">
 import { formatDate, formatNumber } from '~/utils/format';
+import { toDenominationItems } from '~/utils/denominations';
 import { computed, nextTick, ref } from 'vue';
 import { AnalyticsEvent, AnalyticsResult } from '~/constants/analytics';
 import {
@@ -295,12 +296,7 @@ const pageCaption = computed(() => {
 });
 
 /** 這次要準備的現金 of the selected record: non-zero counts, large → small */
-const selectedCash = computed(() =>
-  Object.entries(selectedRecord.value?.denominationCounts ?? {})
-    .map(([denomination, count]) => ({ denomination: Number(denomination), count }))
-    .filter((item) => item.count > 0)
-    .sort((a, b) => b.denomination - a.denomination),
-);
+const selectedCash = computed(() => toDenominationItems(selectedRecord.value?.denominationCounts ?? {}));
 
 /** The selected fill slides only when a row is clicked; a new range / page shows its first row at once */
 const isRowSliding = ref(false);

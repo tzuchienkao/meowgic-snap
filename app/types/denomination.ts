@@ -10,3 +10,15 @@ export enum DenomCellState {
   Has = 'has',
   Zero = 'zero'
 }
+
+/** How many of one denomination, e.g. { denomination: 1000, count: 23 } */
+export interface IDenominationItem {
+  denomination: number;
+  count: number;
+}
+
+/** Order of a denomination list */
+export enum DenominationOrder {
+  LargeFirst = 'large_first',
+  SmallFirst = 'small_first'
+}

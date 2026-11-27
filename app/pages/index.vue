@@ -317,6 +317,7 @@
 
 <script setup lang="ts">
 import { formatNumber } from '~/utils/format';
+import { toDenominationItems } from '~/utils/denominations';
 import { computed, ref } from 'vue';
 
 import { CurrencyUnit } from '~/constants/currency';
@@ -326,7 +327,7 @@ import { BATCH_DEFAULT, BATCH_OFFSET } from '~/constants/record';
 
 import { usePreferences } from '~/composables/usePreferences';
 
-import { DenomCellState, DenomKind } from '~/types/denomination';
+import { DenomCellState, DenomKind, DenominationOrder, type IDenominationItem } from '~/types/denomination';
 
 import { formatDenominationLabel } from '~/utils/preferences';
 import {
@@ -356,11 +357,6 @@ const { user } = useAuth();
 const { showToast } = useToast();
 const { preferences } = usePreferences();
 const { gtag } = useGtag();
-
-interface IDenominationItem {
-  denomination: number;
-  count: number;
-}
 
 interface IResultTotal {
   name: string;
@@ -489,7 +485,7 @@ const resultRows = computed<IResultRow[]>(() =>
     const breakdown = calculateDenominations(row.total, activeDenominations.value);
     return {
       ...row,
-      items: toDenominationItems(breakdown.denominations),
+      items: toDenominationItems(breakdown.denominations, DenominationOrder.SmallFirst),
       remainder: breakdown.remainder,
     };
   }),
@@ -506,9 +502,8 @@ const remainderNotice = computed(() => {
   const total = rows.reduce((sum, row) => sum + row.remainder, 0);
   const needed = Math.min(
     ...rows.flatMap((row) =>
-      Object.entries(calculateDenominations(row.remainder, ALL_DENOMINATIONS).denominations)
-        .filter(([, count]) => count > 0)
-        .map(([value]) => Number(value)),
+      toDenominationItems(calculateDenominations(row.remainder, ALL_DENOMINATIONS).denominations)
+        .map((item) => item.denomination),
     ),
   );
   const fix = isLogin.value ? '到設定頁把它打開吧。' : '到左邊的偏好設定把它打開吧。';
@@ -548,13 +543,6 @@ const coinCells = computed(() =>
     count: denominationTotals.value[value] ?? 0,
   })),
 );
-
-// Smallest → largest, zero counts dropped
-const toDenominationItems = (denominations: Record<number, number>): IDenominationItem[] =>
-  [...activeDenominations.value]
-    .sort((a, b) => a - b)
-    .map((denomination) => ({ denomination, count: denominations[denomination] ?? 0 }))
-    .filter((item) => item.count > 0);
 
 const formatTime = (date: Date) => {
   return date.toLocaleTimeString('zh-TW', {

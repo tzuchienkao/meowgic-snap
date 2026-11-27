@@ -4,15 +4,16 @@
  * (偏好設定) works without changes here.
  */
 import { formatDate, formatNumber, pad2 } from '~/utils/format';
+import { toDenominationItems } from '~/utils/denominations';
 import { CURRENCY_PREFIX, CurrencyUnit } from '~/constants/currency';
-import { DenomKind } from '~/types/denomination';
+import { DenomKind, type IDenominationItem } from '~/types/denomination';
 import { InputFormat, type IRecordCounts, type IRecordDetail } from '~/types/record';
 import { calculateDenominations, isBill } from '~/utils/moneyParser';
 
 export interface IExportRow {
   name: string;
   total: number;
-  items: { denomination: number; count: number }[];
+  items: IDenominationItem[];
 }
 
 /** Count per denomination, e.g. { 1000: 23, 500: 2 } */
@@ -54,14 +55,9 @@ export enum ExportExt {
 const unitOf = (denomination: number) => (isBill(denomination) ? CurrencyUnit.Bill : CurrencyUnit.Coin);
 const largeToSmall = (denominations: readonly number[]) => [...denominations].sort((a, b) => b - a);
 
-interface IDenomLine {
-  denomination: number;
-  count: number;
-}
-
 /** Non-zero denominations, large → small, split into bills and coins. */
 const splitLines = ({ totals, denominations }: ISlipInput) => {
-  const lines: IDenomLine[] = largeToSmall(denominations)
+  const lines: IDenominationItem[] = largeToSmall(denominations)
     .map((denomination) => ({ denomination, count: totals[denomination] ?? 0 }))
     .filter((line) => line.count > 0);
   return {
@@ -78,7 +74,7 @@ const splitLines = ({ totals, denominations }: ISlipInput) => {
  */
 export function buildSlipText(input: ISlipInput): string {
   const { bills, coins } = splitLines(input);
-  const formatGroup = (label: string, group: IDenomLine[]) =>
+  const formatGroup = (label: string, group: IDenominationItem[]) =>
     `【${label}】` +
     group
       .map(({ denomination, count }) =>
@@ -149,9 +145,7 @@ export function buildRecordCsv(record: IRecordDetail): string {
     rows: record.rows.map((row) => ({
       name: row.name,
       total: row.total,
-      items: Object.entries(calculateDenominations(row.total, record.denominations).denominations)
-        .map(([denomination, count]) => ({ denomination: Number(denomination), count }))
-        .filter((item) => item.count > 0),
+      items: toDenominationItems(calculateDenominations(row.total, record.denominations).denominations),
     })),
     totalAmount: record.totalAmount,
     denominations: record.denominations,

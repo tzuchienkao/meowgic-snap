@@ -35,6 +35,7 @@
 
 <script setup lang="ts">
 import { formatDate, formatNumber } from '~/utils/format';
+import { toDenominationItems } from '~/utils/denominations';
 /**
  * 紀錄頁 detail of one record on desktop (right column): the dark name / total card and 這次要準備的現金.
  * Mobile shows AppRecordDetailCard in the list instead.
@@ -49,12 +50,7 @@ const { record } = defineProps<{ record: IRecordDetail }>();
 const emit = defineEmits<{ rename: []; export: [] }>();
 
 /** 這次要準備的現金: non-zero counts, large → small */
-const cash = computed(() =>
-  Object.entries(record.denominationCounts)
-    .map(([denomination, count]) => ({ denomination: Number(denomination), count }))
-    .filter((item) => item.count > 0)
-    .sort((a, b) => b.denomination - a.denomination),
-);
+const cash = computed(() => toDenominationItems(record.denominationCounts));
 </script>
 
 <style>
