@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
-import { ref, type Ref } from 'vue';
+import { mount, flushPromises, type DOMWrapper, type VueWrapper } from '@vue/test-utils';
+import { defineComponent, h, ref, Suspense, watch, type WatchSource } from 'vue';
 import AppButton from '../../components/app/Button/Button.vue';
 import AppCard from '../../components/app/Card/Card.vue';
 import AppCatEarCard from '../../components/app/CatEarCard/CatEarCard.vue';
@@ -16,25 +16,186 @@ import AppRecordRow from '../../components/app/RecordRow/RecordRow.vue';
 import RecordDetail from '../../components/record/RecordDetail.vue';
 import LogsPage from '../../pages/logs.vue';
 import { AnalyticsEvent, AnalyticsResult } from '../../constants/analytics';
+import { InputFormat } from '../../types/record';
 import { downloadBlob } from '../../utils/download';
+import { amountOnlyEntryName, calculateDenominations, DEFAULT_DENOMINATIONS } from '../../utils/moneyParser';
 
 vi.mock('../../utils/download', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../utils/download')>()),
   downloadBlob: vi.fn(),
 }));
 
-/** The mock records run every 3 days back from 2026/11/20 */
+/** The records below run every 3 days back from 2026/11/20 */
 const TODAY = new Date('2026-11-27T10:00:00+08:00');
 
-let store: Record<string, Ref<unknown>>;
+/** A row of public.records, as Supabase returns it */
+interface IRecordRow {
+  id: string;
+  name: string;
+  input_format: InputFormat;
+  entry_count: number;
+  total_amount: number;
+  denominations: number[];
+  denomination_counts: Record<number, number>;
+  rows: { name: string; total: number }[];
+  created_at: string;
+}
+
+const RECORD_COUNT = 64;
+const DAYS_APART = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PEOPLE = ['王小明', '陳美玲', '林志豪', '張雅婷', '李俊傑', '黃淑芬', '吳承恩', '蔡依林', '鄭文華', '許家豪', '周雨萱', '謝明哲'];
+const TITLES = ['薪資', '工讀費', '獎金', '零用金'];
+
+/** 64 records, every 3 days back from 2026/11/20; every 5th is 純金額 */
+const buildRecordRows = (): IRecordRow[] => {
+  const newest = new Date('2026-11-20T12:00:00+08:00').getTime();
+  return Array.from({ length: RECORD_COUNT }, (_, i) => {
+    const createdAt = new Date(newest - i * DAYS_APART * DAY_MS);
+    const inputFormat = i % 5 === 4 ? InputFormat.AmountOnly : InputFormat.NameAndAmount;
+    const entryCount = 3 + (i % 10);
+    const rows = Array.from({ length: entryCount }, (_, j) => ({
+      name: inputFormat === InputFormat.AmountOnly ? amountOnlyEntryName(j + 1) : PEOPLE[j % PEOPLE.length]!,
+      total: 1000 + ((i * 7919 + j * 104729) % 40000),
+    }));
+    const denominations = [...DEFAULT_DENOMINATIONS];
+    const denominationCounts: Record<number, number> = {};
+    rows.forEach((row) => {
+      Object.entries(calculateDenominations(row.total, denominations).denominations).forEach(([denomination, count]) => {
+        denominationCounts[Number(denomination)] = (denominationCounts[Number(denomination)] ?? 0) + count;
+      });
+    });
+    return {
+      id: `record-${i + 1}`,
+      name: `${createdAt.getMonth() + 1}月${TITLES[i % TITLES.length]}`,
+      input_format: inputFormat,
+      entry_count: entryCount,
+      total_amount: rows.reduce((sum, row) => sum + row.total, 0),
+      denominations,
+      denomination_counts: denominationCounts,
+      rows,
+      created_at: createdAt.toISOString(),
+    };
+  });
+};
+
+type Column = keyof IRecordRow;
+
+/**
+ * Just enough of the Supabase query builder for utils/records.ts, over an in-memory table:
+ * select (columns, count), gte, eq, order, range, limit, update, single. Awaiting it runs the query.
+ * `updateBlocked` makes an update match no row, like RLS refusing it; `listFails` / `detailFails` make the
+ * list (the query with a count) / a whole record fail; `selects` lists the selected columns.
+ */
+const createSupabase = (table: IRecordRow[]) => {
+  const state = { updateBlocked: false, listFails: false, detailFails: false, selects: [] as string[] };
+  const from = vi.fn(() => {
+    let rows = [...table];
+    let columns: Column[] | null = null;
+    let withCount = false;
+    let total = 0;
+    let isSingle = false;
+    let changes: Partial<IRecordRow> | null = null;
+    const query = {
+      select(selected = '*', options?: { count?: string }) {
+        state.selects.push(selected);
+        columns = selected === '*' ? null : (selected.split(',').map((column) => column.trim()) as Column[]);
+        withCount = !!options?.count;
+        return query;
+      },
+      gte(column: Column, value: string) {
+        rows = rows.filter((row) => String(row[column]) >= value);
+        return query;
+      },
+      eq(column: Column, value: unknown) {
+        rows = rows.filter((row) => row[column] === value);
+        return query;
+      },
+      order(column: Column, { ascending }: { ascending: boolean }) {
+        rows.sort((a, b) => (String(a[column]) < String(b[column]) === ascending ? -1 : 1));
+        return query;
+      },
+      range(start: number, end: number) {
+        total = rows.length;
+        rows = rows.slice(start, end + 1);
+        return query;
+      },
+      limit(count: number) {
+        rows = rows.slice(0, count);
+        return query;
+      },
+      update(values: Partial<IRecordRow>) {
+        changes = values;
+        return query;
+      },
+      single() {
+        isSingle = true;
+        return query;
+      },
+      then(resolve: (result: unknown) => void) {
+        if ((withCount && state.listFails) || (isSingle && !changes && state.detailFails)) {
+          resolve({ data: null, count: null, error: { code: '500', message: 'Failed to fetch' } });
+          return;
+        }
+        if (changes) {
+          if (state.updateBlocked) rows = [];
+          rows.forEach((row) => Object.assign(row, changes));
+        }
+        const picked = rows.map((row) =>
+          columns ? Object.fromEntries(columns.map((column) => [column, row[column]])) : { ...row },
+        );
+        const count = withCount ? total || picked.length : null;
+        if (isSingle) {
+          resolve(
+            picked.length === 1
+              ? { data: picked[0], error: null }
+              : { data: null, error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' } },
+          );
+          return;
+        }
+        resolve({ data: picked, count, error: null });
+      },
+    };
+    return query;
+  });
+  return { state, client: { from } };
+};
+
+/**
+ * Like Nuxt's useAsyncData: runs the handler (a thrown error lands in `error`), keeps the last data
+ * while it runs again, runs again when a `watch` source changes, and `refresh()` runs it again.
+ */
+const useAsyncDataStub = async <T>(_key: string, handler: () => Promise<T>, options?: { watch?: WatchSource[] }) => {
+  const data = ref<T | undefined>(undefined);
+  const error = ref<unknown>(undefined);
+  const status = ref('idle');
+  const refresh = async () => {
+    status.value = 'pending';
+    try {
+      data.value = await handler();
+      error.value = undefined;
+      status.value = 'success';
+    } catch (e) {
+      error.value = e;
+      status.value = 'error';
+    }
+  };
+  if (options?.watch) watch(options.watch, () => refresh());
+  await refresh();
+  return { data, error, status, refresh };
+};
+
+let table: IRecordRow[];
+let supabase: ReturnType<typeof createSupabase>;
 let showToast: ReturnType<typeof vi.fn>;
 let gtag: ReturnType<typeof vi.fn>;
 let matchesDesktop: boolean;
 let scrollIntoView: ReturnType<typeof vi.fn>;
 let wrapper: VueWrapper | undefined;
 
-const mountPage = () => {
-  wrapper = mount(LogsPage, {
+// The page awaits its data in setup, so it needs a Suspense around it
+const mountPage = async () => {
+  wrapper = mount(defineComponent({ render: () => h(Suspense, null, { default: () => h(LogsPage) }) }), {
     attachTo: document.body,
     global: {
       components: {
@@ -54,7 +215,14 @@ const mountPage = () => {
       },
     },
   });
+  await flushPromises();
   return wrapper;
+};
+
+/** Click, then let the refetches it starts finish */
+const click = async (target: DOMWrapper<Element>) => {
+  await target.trigger('click');
+  await flushPromises();
 };
 
 const rows = (w: VueWrapper) => w.findAll('.records-list .app-record-row');
@@ -74,16 +242,15 @@ const lastDownload = async () => {
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(TODAY);
-  store = {};
+  table = buildRecordRows();
+  supabase = createSupabase(table);
   showToast = vi.fn();
   gtag = vi.fn();
   matchesDesktop = true;
   scrollIntoView = vi.fn();
   Element.prototype.scrollIntoView = scrollIntoView as unknown as Element['scrollIntoView'];
-  vi.stubGlobal('useState', <T>(key: string, init: () => T) => {
-    if (!store[key]) store[key] = ref(init());
-    return store[key] as Ref<T>;
-  });
+  vi.stubGlobal('useNuxtApp', () => ({ $supabase: supabase.client }));
+  vi.stubGlobal('useAsyncData', useAsyncDataStub);
   vi.stubGlobal('useToast', () => ({ showToast }));
   vi.stubGlobal('useGtag', () => ({ gtag }));
   vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({ matches: matchesDesktop, media: query }) as MediaQueryList);
@@ -99,8 +266,8 @@ afterEach(() => {
 });
 
 describe('pages/logs.vue', () => {
-  it('keeps the title and subtitle, with 匯出這個區間 CSV beside them', () => {
-    const w = mountPage();
+  it('keeps the title and subtitle, with 匯出這個區間 CSV beside them', async () => {
+    const w = await mountPage();
     expect(w.find('h1').text()).toBe('紀錄');
     expect(w.find('.page-settings__header p').text()).toBe('每一次兌換都幫你記下來了，紀錄保存 2 年');
     const exportButton = w.find('.page-logs__header .app-button');
@@ -109,8 +276,8 @@ describe('pages/logs.vue', () => {
   });
 
   describe('查詢區間', () => {
-    it('starts at 近 3 個月 and explains the limits, saying it is not an accounting voucher', () => {
-      const w = mountPage();
+    it('starts at 近 3 個月 and explains the limits, saying it is not an accounting voucher', async () => {
+      const w = await mountPage();
       expect(w.findAll('.app-filter-chip').map((c) => c.text())).toEqual(['近 1 個月', '近 3 個月', '近半年']);
       expect(w.find('.app-filter-chip--pressed').text()).toBe('近 3 個月');
       expect(w.findAll('.range-card__hint').map((h) => h.text())).toEqual([
@@ -119,8 +286,8 @@ describe('pages/logs.vue', () => {
       ]);
     });
 
-    it('lists the records in the range, newest first, grouped by year', () => {
-      const w = mountPage();
+    it('lists the records in the range, newest first, grouped by year', async () => {
+      const w = await mountPage();
       expect(rows(w)).toHaveLength(29);
       expect(w.find('.records-list__year').text()).toMatch(/^2026 年\s+29 筆 ▲$/);
       const first = rows(w)[0]!;
@@ -131,12 +298,12 @@ describe('pages/logs.vue', () => {
     });
 
     it('switching the range goes back to page 1 with the new records', async () => {
-      const w = mountPage();
-      await chip(w, '近 1 個月').trigger('click');
+      const w = await mountPage();
+      await click(chip(w, '近 1 個月'));
       expect(w.find('.app-filter-chip--pressed').text()).toBe('近 1 個月');
       expect(rows(w)).toHaveLength(9);
 
-      await chip(w, '近半年').trigger('click');
+      await click(chip(w, '近半年'));
       expect(rows(w)).toHaveLength(50);
       expect(caption(w)).toBe('第 1–50 筆，共 60 筆');
     });
@@ -144,11 +311,11 @@ describe('pages/logs.vue', () => {
 
   describe('pages', () => {
     it('shows 50 per page; the next page shows the rest from the top of the list', async () => {
-      const w = mountPage();
-      await chip(w, '近半年').trigger('click');
+      const w = await mountPage();
+      await click(chip(w, '近半年'));
       const list = w.find('.records-list__scroll').element as HTMLElement;
       list.scrollTop = 400;
-      await w.find('[aria-label="下一頁"]').trigger('click');
+      await click(w.find('[aria-label="下一頁"]'));
       expect(rows(w)).toHaveLength(10);
       expect(caption(w)).toBe('第 51–60 筆，共 60 筆');
       expect(w.find('.app-pagination__page--current').text()).toBe('2');
@@ -159,23 +326,23 @@ describe('pages/logs.vue', () => {
 
     it('under the desktop breakpoint the next page brings the list into view', async () => {
       matchesDesktop = false;
-      const w = mountPage();
-      await chip(w, '近半年').trigger('click');
-      await w.find('[aria-label="下一頁"]').trigger('click');
+      const w = await mountPage();
+      await click(chip(w, '近半年'));
+      await click(w.find('[aria-label="下一頁"]'));
       expect(scrollIntoView).toHaveBeenCalledTimes(1);
       expect(scrollIntoView.mock.contexts[0]).toBe(w.find('.records-list').element);
     });
 
     it('a new range starts from the top of the list', async () => {
-      const w = mountPage();
+      const w = await mountPage();
       const list = w.find('.records-list__scroll').element as HTMLElement;
       list.scrollTop = 400;
-      await chip(w, '近半年').trigger('click');
+      await click(chip(w, '近半年'));
       expect(list.scrollTop).toBe(0);
     });
 
     it('folds and unfolds a year', async () => {
-      const w = mountPage();
+      const w = await mountPage();
       const year = w.find('.records-list__year');
       await year.trigger('click');
       expect(year.attributes('aria-expanded')).toBe('false');
@@ -188,8 +355,8 @@ describe('pages/logs.vue', () => {
   });
 
   describe('the selected record', () => {
-    it('is the newest one at first, shown in the hero card with the cash to prepare', () => {
-      const w = mountPage();
+    it('is the newest one at first, shown in the hero card with the cash to prepare', async () => {
+      const w = await mountPage();
       expect(rows(w)[0]!.classes()).toContain('app-record-row--selected');
       expect(w.findAll('.app-record-row--selected')).toHaveLength(1);
       expect(detailName(w)).toBe('11月薪資');
@@ -206,8 +373,8 @@ describe('pages/logs.vue', () => {
     });
 
     it('follows the clicked row; an amount-only record says 純金額', async () => {
-      const w = mountPage();
-      await rows(w)[4]!.trigger('click');
+      const w = await mountPage();
+      await click(rows(w)[4]!);
       expect(rows(w)[4]!.classes()).toContain('app-record-row--selected');
       expect(rows(w)[0]!.classes()).not.toContain('app-record-row--selected');
       expect(detailName(w)).toBe(rows(w)[4]!.find('.app-record-row__name').text());
@@ -215,9 +382,9 @@ describe('pages/logs.vue', () => {
     });
 
     it('on desktop a click keeps the scroll, and clicking the selected row again keeps it selected', async () => {
-      const w = mountPage();
-      await rows(w)[1]!.trigger('click');
-      await rows(w)[1]!.trigger('click');
+      const w = await mountPage();
+      await click(rows(w)[1]!);
+      await click(rows(w)[1]!);
       expect(scrollIntoView).not.toHaveBeenCalled();
       expect(detailName(w)).toBe(rows(w)[1]!.find('.app-record-row__name').text());
       expect(detailCards(w)).toHaveLength(1);
@@ -231,8 +398,8 @@ describe('pages/logs.vue', () => {
         matchesDesktop = false;
       });
 
-      it('the selected record (the newest at first) is an open RecordDetailCard in place of its row', () => {
-        const w = mountPage();
+      it('the selected record (the newest at first) is an open RecordDetailCard in place of its row', async () => {
+        const w = await mountPage();
         expect(detailCards(w)).toHaveLength(1);
         const item = w.findAll('.records-list__item')[0]!;
         // The plain row stays for desktop only
@@ -250,9 +417,8 @@ describe('pages/logs.vue', () => {
       });
 
       it('tapping another row makes it the card and keeps it in view', async () => {
-        const w = mountPage();
-        await rows(w)[3]!.trigger('click');
-        await flushPromises();
+        const w = await mountPage();
+        await click(rows(w)[3]!);
         const items = w.findAll('.records-list__item');
         expect(detailCards(w)).toHaveLength(1);
         expect(items[3]!.find('.app-record-detail-card__name').text()).toBe(rows(w)[3]!.find('.app-record-row__name').text());
@@ -263,7 +429,7 @@ describe('pages/logs.vue', () => {
       });
 
       it('tapping the card head folds it to a row with the amount; tapping again opens it', async () => {
-        const w = mountPage();
+        const w = await mountPage();
         await head(w).trigger('click');
         expect(head(w).attributes('aria-expanded')).toBe('false');
         expect(card(w).find('.app-record-detail-card__head-amount').text()).toBe('37,187');
@@ -277,14 +443,14 @@ describe('pages/logs.vue', () => {
       });
 
       it('a folded card opens again with a new range', async () => {
-        const w = mountPage();
+        const w = await mountPage();
         await head(w).trigger('click');
-        await chip(w, '近半年').trigger('click');
+        await click(chip(w, '近半年'));
         expect(head(w).attributes('aria-expanded')).toBe('true');
       });
 
       it('改名 and 匯出這筆 CSV from the card', async () => {
-        const w = mountPage();
+        const w = await mountPage();
         await card(w).find('.app-record-detail-card__rename').trigger('click');
         expect(w.find('.app-dialog__title').text()).toBe('幫這筆紀錄改名');
         await card(w).find('.app-record-detail-card__cash .app-button').trigger('click');
@@ -293,9 +459,9 @@ describe('pages/logs.vue', () => {
     });
 
     it('goes back to the newest when the range changes', async () => {
-      const w = mountPage();
-      await rows(w)[3]!.trigger('click');
-      await chip(w, '近半年').trigger('click');
+      const w = await mountPage();
+      await click(rows(w)[3]!);
+      await click(chip(w, '近半年'));
       expect(rows(w)[0]!.classes()).toContain('app-record-row--selected');
       expect(detailName(w)).toBe('11月薪資');
     });
@@ -306,7 +472,7 @@ describe('pages/logs.vue', () => {
     const saveButton = (w: VueWrapper) => w.findAll('.rename-dialog__actions button')[0]!;
 
     it('opens a dialog with the current name; 儲存 waits for a change', async () => {
-      const w = mountPage();
+      const w = await mountPage();
       await button(w, '✎ 改名').trigger('click');
       expect(w.find('.app-dialog__title').text()).toBe('幫這筆紀錄改名');
       expect((nameInput(w).element as HTMLInputElement).value).toBe('11月薪資');
@@ -315,7 +481,7 @@ describe('pages/logs.vue', () => {
     });
 
     it('does not take an empty name or one over 20 characters', async () => {
-      const w = mountPage();
+      const w = await mountPage();
       await button(w, '✎ 改名').trigger('click');
       await nameInput(w).setValue('   ');
       expect(w.find('.app-dialog .app-input__meta').text()).toContain('名稱不能空白喵');
@@ -326,19 +492,30 @@ describe('pages/logs.vue', () => {
     });
 
     it('儲存 renames the record in the list and the detail, closes the dialog with a toast', async () => {
-      const w = mountPage();
+      const w = await mountPage();
       await button(w, '✎ 改名').trigger('click');
       await nameInput(w).setValue('  年終獎金  ');
-      await saveButton(w).trigger('click');
-      await flushPromises();
+      await click(saveButton(w));
       expect(w.find('.app-dialog').exists()).toBe(false);
       expect(showToast).toHaveBeenCalledWith('名稱改好了喵');
       expect(detailName(w)).toBe('年終獎金');
       expect(rows(w)[0]!.find('.app-record-row__name').text()).toBe('年終獎金');
     });
 
+    it('a rename the database refuses keeps the dialog open and says so', async () => {
+      supabase.state.updateBlocked = true;
+      const w = await mountPage();
+      await button(w, '✎ 改名').trigger('click');
+      await nameInput(w).setValue('年終獎金');
+      await click(saveButton(w));
+      expect(showToast).toHaveBeenCalledWith('名稱沒有改成功喵，再試一次看看');
+      expect(w.find('.app-dialog').exists()).toBe(true);
+      expect(detailName(w)).toBe('11月薪資');
+      expect(rows(w)[0]!.find('.app-record-row__name').text()).toBe('11月薪資');
+    });
+
     it('先不要 closes it without renaming', async () => {
-      const w = mountPage();
+      const w = await mountPage();
       await button(w, '✎ 改名').trigger('click');
       await nameInput(w).setValue('年終獎金');
       await button(w, '先不要').trigger('click');
@@ -349,7 +526,7 @@ describe('pages/logs.vue', () => {
 
   describe('CSV', () => {
     it('匯出這筆 CSV downloads the selected record, named by its date', async () => {
-      const w = mountPage();
+      const w = await mountPage();
       await button(w, '匯出這筆 CSV').trigger('click');
       const { fileName, lines } = await lastDownload();
       expect(fileName).toMatch(/^領款明細_20261120-\d{4}\.csv$/);
@@ -361,10 +538,9 @@ describe('pages/logs.vue', () => {
     });
 
     it('匯出這個區間 CSV downloads every record in the range', async () => {
-      const w = mountPage();
-      await chip(w, '近半年').trigger('click');
-      await button(w, '匯出這個區間 CSV').trigger('click');
-      await flushPromises();
+      const w = await mountPage();
+      await click(chip(w, '近半年'));
+      await click(button(w, '匯出這個區間 CSV'));
       const { fileName, lines } = await lastDownload();
       expect(fileName).toMatch(/^兌換紀錄_20261127-\d{4}\.csv$/);
       expect(lines[0]).toBe('日期,名稱,筆數,金額,NT$1000,NT$500,NT$100,NT$50,NT$10,NT$5,NT$1');
@@ -372,22 +548,101 @@ describe('pages/logs.vue', () => {
       expect(lines).toHaveLength(1 + 60 + 1);
       expect(lines[1]!.startsWith('2026/11/20,11月薪資,3,37187,')).toBe(true);
       expect(gtag).toHaveBeenCalledWith('event', AnalyticsEvent.ExportRangeCsv, { result: AnalyticsResult.Success, record_count: 60 });
+      // The names and amounts of each entry (rows) are not fetched for it
+      expect(supabase.state.selects.at(-1)).not.toContain('rows');
     });
 
     it('a failed download says so', async () => {
       vi.mocked(downloadBlob).mockImplementationOnce(() => {
         throw new Error('blocked');
       });
-      const w = mountPage();
+      const w = await mountPage();
       await button(w, '匯出這筆 CSV').trigger('click');
       expect(showToast).toHaveBeenCalledWith('CSV 沒有匯出成功喵');
       expect(gtag).toHaveBeenCalledWith('event', AnalyticsEvent.ExportRecordCsv, { result: AnalyticsResult.Failed, entry_count: 3 });
     });
   });
 
-  it('with nothing in the range: a placeholder instead of the list, and nothing to export', () => {
+  describe('loading', () => {
+    it('a new range keeps the old list, dimmed, until the new one arrives', async () => {
+      const w = await mountPage();
+      await chip(w, '近半年').trigger('click');
+      // The refetch has started but not finished
+      const list = w.find('.records-list');
+      expect(list.attributes('aria-busy')).toBe('true');
+      expect(rows(w)).toHaveLength(29);
+      await flushPromises();
+      expect(list.attributes('aria-busy')).toBe('false');
+      expect(rows(w)).toHaveLength(50);
+    });
+
+    it('another record: the row is selected at once, the old detail stays dimmed until the new one arrives', async () => {
+      const w = await mountPage();
+      await rows(w)[2]!.trigger('click');
+      expect(rows(w)[2]!.classes()).toContain('app-record-row--selected');
+      expect(side(w).attributes('aria-busy')).toBe('true');
+      expect(detailName(w)).toBe('11月薪資');
+      await flushPromises();
+      expect(side(w).attributes('aria-busy')).toBe('false');
+      expect(detailName(w)).toBe(rows(w)[2]!.find('.app-record-row__name').text());
+    });
+  });
+
+  describe('load failures', () => {
+    it('the list: says so with 重試 instead of the list, and nothing to export', async () => {
+      supabase.state.listFails = true;
+      const w = await mountPage();
+      expect(w.find('.page-logs__body').exists()).toBe(false);
+      expect(w.find('.logs-empty__text').text()).toBe('資料沒有載入成功喵');
+      expect(w.find('.page-logs__header .app-button').attributes('disabled')).toBeDefined();
+
+      supabase.state.listFails = false;
+      await click(button(w, '重試'));
+      expect(rows(w)).toHaveLength(29);
+      expect(detailName(w)).toBe('11月薪資');
+    });
+
+    it('a new range that fails says so too', async () => {
+      const w = await mountPage();
+      supabase.state.listFails = true;
+      await click(chip(w, '近半年'));
+      expect(w.find('.logs-empty__text').text()).toBe('資料沒有載入成功喵');
+    });
+
+    it('the detail: says so with 重試 beside the list, which stays', async () => {
+      supabase.state.detailFails = true;
+      const w = await mountPage();
+      expect(rows(w)).toHaveLength(29);
+      expect(rows(w)[0]!.classes()).toContain('app-record-row--selected');
+      expect(w.find('.record-detail').exists()).toBe(false);
+      const error = w.find('.page-logs__side');
+      expect(error.find('.detail-error__text').text()).toBe('這筆紀錄沒有載入成功喵');
+
+      supabase.state.detailFails = false;
+      await click(error.find('button'));
+      expect(detailName(w)).toBe('11月薪資');
+      expect(w.find('.detail-error').exists()).toBe(false);
+    });
+
+    it('under the desktop breakpoint the detail failure sits under the selected row', async () => {
+      matchesDesktop = false;
+      supabase.state.detailFails = true;
+      const w = await mountPage();
+      const item = w.findAll('.records-list__item')[0]!;
+      expect(item.find('.app-record-detail-card').exists()).toBe(false);
+      // The row is not replaced by a card, so it shows on mobile too
+      expect(item.find('.app-record-row').classes()).not.toContain('records-list__row--desktop-only');
+      expect(item.find('.records-list__detail-error .detail-error__text').text()).toBe('這筆紀錄沒有載入成功喵');
+
+      supabase.state.detailFails = false;
+      await click(item.find('.records-list__detail-error button'));
+      expect(item.find('.app-record-detail-card').exists()).toBe(true);
+    });
+  });
+
+  it('with nothing in the range: a placeholder instead of the list, and nothing to export', async () => {
     vi.setSystemTime(new Date('2028-01-01T10:00:00+08:00'));
-    const w = mountPage();
+    const w = await mountPage();
     expect(w.find('.page-logs__body').exists()).toBe(false);
     const slot = w.find('.app-cat-ear-card .logs-empty');
     expect(slot.classes()).toContain('app-illustration-slot--placeholder');

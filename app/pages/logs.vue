@@ -10,7 +10,7 @@
         size="md"
         icon="↓"
         label="匯出這個區間 CSV"
-        :disabled="!totalCount || isExportingRange"
+        :disabled="!totalCount || hasListError || isExportingRange"
         @click="onExportRangeClick"
       />
     </div>
@@ -33,17 +33,18 @@
       <p class="range-card__hint">這不是會計憑證，需要留存請匯出 CSV 自行保存</p>
     </app-card>
 
-    <!-- Nothing in the 查詢區間 -->
-    <app-cat-ear-card v-if="!records.length">
+    <!-- Nothing in the 查詢區間, or the list could not be loaded -->
+    <app-cat-ear-card v-if="hasListError || !records.length" class="page-logs__loadable" :aria-busy="isListLoading">
       <app-illustration-slot class="logs-empty" label="貓咪插畫：翻開空白的紀錄本" radius="card" :stripe="10">
-        <p class="logs-empty__text">{{ EMPTY_MESSAGE }}</p>
+        <p class="logs-empty__text">{{ hasListError ? LIST_ERROR_MESSAGE : EMPTY_MESSAGE }}</p>
+        <app-button v-if="hasListError" variant="primary" size="md" label="重試" @click="onListRetryClick" />
       </app-illustration-slot>
     </app-cat-ear-card>
 
     <!-- DS: list 380px + detail beside it (desktop: breakpoint, 900px). Desktop: at most one screen tall,
          the list scrolls inside. Mobile: one column, the selected row becomes a RecordDetailCard -->
     <div v-else class="page-logs__body">
-      <div :ref="onListRef" class="records-list">
+      <div :ref="onListRef" class="records-list page-logs__loadable" :aria-busy="isListLoading">
         <div :ref="onScrollRef" class="records-list__scroll">
           <section v-for="group in yearGroups" :key="group.year" class="records-list__group">
             <button
@@ -61,29 +62,38 @@
               <li v-for="record in group.records" :key="record.id" class="records-list__item" :data-record-id="record.id">
                 <app-record-row
                   class="records-list__row"
-                  :class="{ 'records-list__row--desktop-only': record.id === selectedRecord?.id }"
+                  :class="{ 'records-list__row--desktop-only': record.id === shownRecord?.id }"
                   :name="record.name"
                   :date="formatDate(record.createdAt)"
                   :meta="`${record.entryCount} 筆`"
                   :amount="formatNumber(record.totalAmount)"
-                  :selected="record.id === selectedRecord?.id"
+                  :selected="record.id === currentId"
                   @click="onRecordClick(record.id)"
                 />
                 <!-- Mobile: the selected row, its total and cash in one cat-ear card -->
                 <app-record-detail-card
-                  v-if="selectedRecord && record.id === selectedRecord.id"
-                  class="records-list__detail-card"
-                  :name="selectedRecord.name"
-                  :date="formatDate(selectedRecord.createdAt)"
-                  :count="selectedRecord.entryCount"
-                  :format="INPUT_FORMAT_LABEL[selectedRecord.inputFormat]"
-                  :amount="formatNumber(selectedRecord.totalAmount)"
+                  v-if="shownRecord && record.id === shownRecord.id"
+                  class="records-list__detail-card page-logs__loadable"
+                  :aria-busy="isDetailLoading"
+                  :name="shownRecord.name"
+                  :date="formatDate(shownRecord.createdAt)"
+                  :count="shownRecord.entryCount"
+                  :format="INPUT_FORMAT_LABEL[shownRecord.inputFormat]"
+                  :amount="formatNumber(shownRecord.totalAmount)"
                   :breakdown="selectedCash"
                   :open="!isInlineCollapsed"
                   @toggle="onRecordClick(record.id)"
                   @rename="onRenameClick"
                   @export="onExportRecordClick"
                 />
+                <app-card
+                  v-else-if="hasDetailError && record.id === currentId"
+                  radius="sub"
+                  class="detail-error records-list__detail-error"
+                >
+                  <p class="detail-error__text">{{ DETAIL_ERROR_MESSAGE }}</p>
+                  <app-button variant="primary" size="sm" label="重試" @click="onDetailRetryClick" />
+                </app-card>
               </li>
             </ul>
           </section>
@@ -97,10 +107,15 @@
         />
       </div>
 
+      <app-card v-if="hasDetailError" class="detail-error page-logs__side">
+        <p class="detail-error__text">{{ DETAIL_ERROR_MESSAGE }}</p>
+        <app-button variant="primary" size="md" label="重試" @click="onDetailRetryClick" />
+      </app-card>
       <record-detail
-        v-if="selectedRecord"
-        class="page-logs__side"
-        :record="selectedRecord"
+        v-else-if="shownRecord"
+        class="page-logs__side page-logs__loadable"
+        :aria-busy="isDetailLoading"
+        :record="shownRecord"
         @rename="onRenameClick"
         @export="onExportRecordClick"
       />
@@ -135,11 +150,19 @@ import {
   RECORDS_PAGE_SIZE,
 } from '~/constants/record';
 import { useRecords } from '~/composables/useRecords';
+import { useRecordDetail } from '~/composables/useRecordDetail';
 import type { RecordRange } from '~/types/record';
 import { createCsvBlob, downloadBlob } from '~/utils/download';
 import { buildExportFileName, buildRecordCsv, buildRecordsCsv, EXPORT_RECORDS_FILE_PREFIX, ExportExt } from '~/utils/exporters';
+import { updateRecordName } from '~/utils/records';
 
 const EMPTY_MESSAGE = '這段期間沒有兌換紀錄喵';
+const LIST_ERROR_MESSAGE = '資料沒有載入成功喵';
+const DETAIL_ERROR_MESSAGE = '這筆紀錄沒有載入成功喵';
+/** useAsyncData's status while it fetches */
+enum AsyncDataStatus {
+  Pending = 'pending',
+}
 /** Same as --breakpoint-desktop: from here the list and the detail sit side by side */
 const DESKTOP_MEDIA_QUERY = '(min-width: 900px)';
 const MESSAGES = {
@@ -159,13 +182,29 @@ const {
   records,
   totalCount,
   pageCount,
-  selectedRecord,
+  currentId,
   setRange,
   setPage,
   selectRecord,
-  renameRecord,
   listRangeRecords,
-} = useRecords();
+  status: listStatus,
+  error: listError,
+  refresh: refreshList,
+} = await useRecords();
+const {
+  selectedRecord,
+  status: detailStatus,
+  error: detailError,
+  refresh: refreshDetail,
+} = await useRecordDetail(currentId);
+
+// Loading (a new range / page / record keeps the old one, dimmed, until it arrives) and load failures
+const isListLoading = computed(() => listStatus.value === AsyncDataStatus.Pending);
+const hasListError = computed(() => !!listError.value);
+const isDetailLoading = computed(() => detailStatus.value === AsyncDataStatus.Pending);
+const hasDetailError = computed(() => !!detailError.value);
+/** The record the detail shows: none when it could not be loaded */
+const shownRecord = computed(() => (hasDetailError.value ? undefined : selectedRecord.value));
 
 const formatNumber = (value: number) => value.toLocaleString('en-US');
 const pad2 = (value: number) => String(value).padStart(2, '0');
@@ -244,7 +283,7 @@ const onRecordClick = async (id: string) => {
     selectRecord(id);
     return;
   }
-  if (id === selectedRecord.value?.id) {
+  if (id === currentId.value) {
     isInlineCollapsed.value = !isInlineCollapsed.value;
     return;
   }
@@ -253,6 +292,13 @@ const onRecordClick = async (id: string) => {
   // The card that was open above may have folded into a row and moved this one up: keep the new card in view
   await nextTick();
   listElement?.querySelector(`[data-record-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+const onListRetryClick = () => {
+  refreshList();
+};
+const onDetailRetryClick = () => {
+  refreshDetail();
 };
 
 // 改名
@@ -280,7 +326,8 @@ const onRenameSaveClick = async () => {
   if (!selectedRecord.value || !canSaveName.value) return;
   isRenaming.value = true;
   try {
-    await renameRecord(selectedRecord.value.id, renameValue.value.trim());
+    await updateRecordName(selectedRecord.value.id, renameValue.value.trim());
+    await Promise.all([refreshList(), refreshDetail()]);
     isRenameOpen.value = false;
     showToast(MESSAGES.renameDone);
   } catch (error) {
@@ -354,6 +401,21 @@ const onExportRangeClick = async () => {
   @apply text-lg;
 }
 
+/* While a new range / page / record loads, the old one stays dimmed (and can't be clicked) */
+.page-logs__loadable {
+  @apply transition-opacity duration-200;
+}
+.page-logs__loadable[aria-busy='true'] {
+  @apply pointer-events-none opacity-60;
+}
+
+.detail-error {
+  @apply items-center gap-3 text-center;
+}
+.detail-error__text {
+  @apply text-ink;
+}
+
 .page-logs__body {
   @apply grid grid-cols-1 items-start gap-5 desktop:grid-cols-[minmax(0,380px)_minmax(0,1fr)];
 }
@@ -395,7 +457,8 @@ const onExportRangeClick = async () => {
 .records-list__row--desktop-only {
   @apply hidden desktop:flex;
 }
-.records-list__detail-card {
+.records-list__detail-card,
+.records-list__detail-error {
   @apply my-2 desktop:hidden;
 }
 .page-logs__side {
