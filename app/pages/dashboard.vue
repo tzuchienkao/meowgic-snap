@@ -6,7 +6,7 @@
     </div>
     <app-cat-ear-card v-if="!hasRecords || hasError">
       <app-illustration-slot class="dashboard-empty" radius="card">
-        <img src="~/assets/images/cats-food-can.svg" alt="貓咪插畫：抱著空空的存錢筒" class="h-30" />
+        <img src="~/assets/images/cats-food-can.svg" alt="貓咪插畫：空空的罐罐" class="h-30" />
         <p class="dashboard-empty__text">{{ hasError ? ERROR_MESSAGE : EMPTY_MESSAGE }}</p>
         <app-button v-if="!hasRecords && !hasError" variant="primary" size="md" @click="onGoHomeClick">去首頁算一次</app-button>
         <app-button v-if="hasError" variant="primary" size="md" @click="onRetryClick">重試</app-button>
