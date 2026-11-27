@@ -40,5 +40,9 @@ export default defineNuxtConfig({
     plugins: [
       tailwindcss(),
     ],
+    // Dev only: pre-bundle at startup instead of discovering it on the first page load (which reloads the page)
+    optimizeDeps: {
+      include: ['@supabase/ssr'],
+    },
   },
 })
