@@ -43,3 +43,9 @@ export const INPUT_FORMAT_LABEL: Record<InputFormat, string> = {
   [InputFormat.NameAndAmount]: '姓名＋金額',
   [InputFormat.AmountOnly]: '純金額',
 };
+
+/** How the input format reads on the home page: the comma shows how a line is pasted (張三,18500) */
+export const PASTE_FORMAT_LABEL: Record<InputFormat, string> = {
+  [InputFormat.NameAndAmount]: '姓名,金額',
+  [InputFormat.AmountOnly]: '純金額',
+};

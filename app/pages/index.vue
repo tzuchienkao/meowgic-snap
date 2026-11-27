@@ -323,7 +323,7 @@ import { computed, ref } from 'vue';
 import { CurrencyUnit } from '~/constants/currency';
 import { RouteName } from '~/constants/navigation';
 import { AnalyticsEvent, AnalyticsResult } from '~/constants/analytics';
-import { BATCH_DEFAULT, BATCH_OFFSET } from '~/constants/record';
+import { BATCH_DEFAULT, BATCH_OFFSET, PASTE_FORMAT_LABEL } from '~/constants/record';
 
 import { usePreferences } from '~/composables/usePreferences';
 
@@ -397,7 +397,7 @@ const isLogin = computed(() => !!user.value);
 const activeDenominations = computed(() => preferences.value.denominations);
 const denominations = computed(() => activeDenominations.value.length);
 const includesNames = computed(() => preferences.value.includesNames);
-const formatLabel = computed(() => (includesNames.value ? '姓名,金額' : '純金額'));
+const formatLabel = computed(() => PASTE_FORMAT_LABEL[toInputFormat(includesNames.value)]);
 const saveNote = computed(() =>
   includesNames.value ? RECORD_MESSAGES.saveNoteWithNames : RECORD_MESSAGES.saveNoteAmountOnly
 );
@@ -473,7 +473,7 @@ const placeholderText = computed(() =>
 
 const summaryChips = computed(() => {
   const { entryCount, uniqueNames, calculatedAt } = resultState.value;
-  const formatChip = resultState.value.includesNames ? '姓名,金額' : '純金額';
+  const formatChip = PASTE_FORMAT_LABEL[toInputFormat(resultState.value.includesNames)];
   const chips = [`總筆數：${entryCount} 筆 · ${uniqueNames} 人`, formatChip];
   if (calculatedAt) chips.push(`計算時間 ${calculatedAt}`);
   return chips;
