@@ -1,3 +1,6 @@
+import type { ISignInResult } from '~/types/auth';
+import { getSupabaseErrorKind, getRetryAfterSeconds } from '~/utils/supabaseErrors'
+
 interface IUser {
   id: string;
   email: string;
@@ -41,7 +44,8 @@ export const useAuth = () => {
       error.value = null;
       
       if (supabase) {
-        await supabase.auth.signOut();
+        const { error: err } = await supabase.auth.signOut();
+        if (err) throw err;
       }
       user.value = null;
       if (import.meta.client) {
@@ -56,7 +60,7 @@ export const useAuth = () => {
   };
 
   // Magic Link 登入
-  const signInWithMagicLink = async (email: string) => {
+  const signInWithMagicLink = async (email: string): Promise<ISignInResult> => {
     try {
       isLoading.value = true;
       error.value = null;
@@ -78,7 +82,11 @@ export const useAuth = () => {
     } catch (err) {
       error.value = err instanceof Error ? err.message : '發送 Magic Link 失敗';
       console.error('Magic link error:', err);
-      return { success: false, error: error.value };
+      return {
+        success: false,
+        kind: getSupabaseErrorKind(err),
+        retryAfterSeconds: getRetryAfterSeconds(err)
+      };
     } finally {
       isLoading.value = false;
     }
