@@ -165,7 +165,9 @@
         <!-- Too many entries: offer to calculate the first MAX_ENTRIES or copy the rest -->
         <app-cat-ear-card v-if="isOver" class="over-card">
           <div class="over-card__content">
-            <app-illustration-slot class="over-card__art" label="貓咪插畫：被一疊鈔票壓住" :stripe="8" />
+            <app-illustration-slot class="over-card__art">
+              <img src="~/assets/images/cats-under-money.svg" alt="貓咪插畫：被一疊鈔票壓住" />
+            </app-illustration-slot>
             <div class="over-card__text">
               <h2 class="over-card__title">太多了喵，算不動 (=ΦдΦ=)</h2>
               <p class="over-card__desc">

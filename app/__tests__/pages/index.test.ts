@@ -1235,7 +1235,7 @@ describe('pages/index.vue', () => {
       expect(wrapper.find('.summary-card').exists()).toBe(false);
       expect(wrapper.find('.money-snap__error-box').exists()).toBe(false);
 
-      expect(card.find('.app-illustration-slot__label').text()).toBe('貓咪插畫：被一疊鈔票壓住');
+      expect(card.find('.over-card__art img').attributes('alt')).toBe('貓咪插畫：被一疊鈔票壓住');
       expect(card.find('.over-card__title').text()).toBe('太多了喵，算不動 (=ΦдΦ=)');
       expect(card.find('.over-card__desc').text()).toBe('你貼了 1,248 筆，每次最多只支援 1,000 筆，多出 248 筆。');
       expect(card.find('.over-card__desc b.text-ink').text()).toBe('1,248');
