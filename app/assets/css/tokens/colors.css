@@ -47,6 +47,9 @@
   --ms-link:#C25A22;
   --ms-link-hover:#8F3F14;
   --ms-focus:#F08A4B;
+  /* RecordDetailCard (mobile 紀錄): cash panel inside the dark card, and its badges */
+  --ms-rdc-inner:#FFFFFF;
+  --ms-rdc-badge:#FFF4EA;
 
   /* 領款明細圖「灰藍貓」— export image only, theme-independent */
   --ms-slip-bg:#E8EDF2;
@@ -121,4 +124,6 @@
   --ms-scrim:rgba(0,0,0,.5);
   --ms-scrim-strong:rgba(0,0,0,.55);
   --ms-focus:#F2C14E;
+  --ms-rdc-inner:#1C1B1F;
+  --ms-rdc-badge:#2A2830;
 }
