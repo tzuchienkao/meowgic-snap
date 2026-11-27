@@ -11,6 +11,7 @@ import AppRecordRow from '../../components/app/RecordRow/RecordRow.vue';
 import AppTotalCard from '../../components/app/TotalCard/TotalCard.vue';
 import DashboardPage from '../../pages/dashboard.vue';
 import { RouteName } from '../../constants/navigation';
+import { LogsQuery } from '../../constants/record';
 import type { IDashboardData } from '../../types/dashboard';
 
 /** What get_dashboard_summary() returns for a member with records */
@@ -158,15 +159,18 @@ describe('pages/dashboard.vue', () => {
     rows.forEach((row) => expect(row.find('.app-record-row__chevron').exists()).toBe(true));
   });
 
-  it('"全部紀錄 ›" and a record row go to the logs page', async () => {
+  it('"全部紀錄 ›" goes to the logs page; a record row opens that record there', async () => {
     const card = findCard((await mountPage()), '最近幾次兌換');
     const allButton = card.find('.app-card__aside .app-button');
     expect(allButton.text()).toBe('全部紀錄 ›');
     expect(allButton.classes()).toEqual(expect.arrayContaining(['app-button--secondary', 'app-button--xs']));
     await allButton.trigger('click');
     expect(push).toHaveBeenCalledWith({ name: RouteName.Logs });
-    await card.find('.app-record-row').trigger('click');
-    expect(push).toHaveBeenCalledTimes(2);
+    await card.findAll('.app-record-row')[1]!.trigger('click');
+    expect(push).toHaveBeenLastCalledWith({
+      name: RouteName.Logs,
+      query: { [LogsQuery.Record]: 'r2', [LogsQuery.CreatedAt]: '2026-09-16T12:00:00+08:00' },
+    });
   });
 
   it('loads the summary once through get_dashboard_summary()', async () => {

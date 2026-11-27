@@ -81,7 +81,7 @@
               :meta="record.meta"
               :amount="record.amount"
               chevron
-              @click="onRecordClick"
+              @click="onRecordClick(record)"
             />
           </li>
         </ul>
@@ -94,6 +94,7 @@
 import { computed } from 'vue';
 import { CurrencyUnit } from '~/constants/currency';
 import { RouteName } from '~/constants/navigation';
+import { LogsQuery } from '~/constants/record';
 import { useDashboard } from '~/composables/useDashboard';
 import { DenomCellState, DenomKind } from '~/types/denomination';
 import { isBill } from '~/utils/moneyParser';
@@ -150,6 +151,7 @@ const coinCells = computed(() => sortedDenominations.value.filter((item) => !isB
 const recentRows = computed(() =>
   recentRecords.value.map((record) => ({
     id: record.id,
+    createdAt: record.createdAt,
     name: record.name,
     date: formatDate(record.createdAt),
     meta: `${record.entryCount} 筆`,
@@ -169,9 +171,9 @@ const onAllRecordsClick = () => {
   router.push({ name: RouteName.Logs });
 };
 
-// TODO: open the clicked record once the 紀錄 page supports it
-const onRecordClick = () => {
-  router.push({ name: RouteName.Logs });
+/** Opens the 紀錄 page on this record (a 查詢區間 that shows it, with it selected) */
+const onRecordClick = ({ id, createdAt }: { id: string; createdAt: string }) => {
+  router.push({ name: RouteName.Logs, query: { [LogsQuery.Record]: id, [LogsQuery.CreatedAt]: createdAt } });
 };
 </script>
 

@@ -1,6 +1,6 @@
 <template>
   <button type="button" class="app-filter-chip" :class="{ 'app-filter-chip--pressed': pressed }" :aria-pressed="pressed" @click="emit('click')">
-    <slot>{{ label }}</slot>
+    <span class="app-filter-chip__label"><slot>{{ label }}</slot></span>
   </button>
 </template>
 

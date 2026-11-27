@@ -23,10 +23,38 @@
           v-for="option in RECORD_RANGE_OPTIONS"
           :key="option.value"
           :label="option.label"
-          :pressed="option.value === range"
+          :pressed="!isCustomOpen && option.value === range"
           @click="onRangeClick(option.value)"
         />
+        <app-filter-chip :label="CUSTOM_RANGE_LABEL" :pressed="isCustomOpen" @click="onCustomRangeClick" />
+        <!-- Slides to the pressed chip, like NavPills -->
+        <span class="range-card__indicator" aria-hidden="true" />
       </div>
+      <!-- 自訂: pick the days (within 2 years, at most half a year), then 查詢 -->
+      <form v-if="isCustomOpen" class="custom-range" novalidate @submit.prevent="onCustomRangeSubmit">
+        <div class="custom-range__fields">
+          <app-input
+            v-model="customStart"
+            class="custom-range__field"
+            type="date"
+            label="開始日期"
+            :min="dateLimits.min"
+            :max="dateLimits.max"
+            :invalid="!!customError"
+          />
+          <app-input
+            v-model="customEnd"
+            class="custom-range__field"
+            type="date"
+            label="結束日期"
+            :min="dateLimits.min"
+            :max="dateLimits.max"
+            :invalid="!!customError"
+          />
+          <app-button variant="primary" size="md" label="查詢" class="custom-range__submit" @click="onCustomRangeSubmit" />
+        </div>
+        <p v-if="customError" class="custom-range__error" role="alert">{{ customError }}</p>
+      </form>
       <p class="range-card__hint">
         紀錄保存 2 年 · 一次最多查半年 · 最多顯示 {{ RECORDS_MAX_RESULTS }} 筆 · 每頁 {{ RECORDS_PAGE_SIZE }} 筆
       </p>
@@ -97,6 +125,12 @@
               </li>
             </ul>
           </section>
+          <!-- Desktop: slides to the selected row, like NavPills -->
+          <span
+            class="records-list__indicator"
+            :class="{ 'records-list__indicator--sliding': isRowSliding }"
+            aria-hidden="true"
+          />
         </div>
         <app-pagination
           class="records-list__pagination"
@@ -143,7 +177,9 @@
 import { computed, nextTick, ref } from 'vue';
 import { AnalyticsEvent, AnalyticsResult } from '~/constants/analytics';
 import {
+  CUSTOM_RANGE_LABEL,
   INPUT_FORMAT_LABEL,
+  LogsQuery,
   MAX_RECORD_NAME_LENGTH,
   RECORD_RANGE_OPTIONS,
   RECORDS_MAX_RESULTS,
@@ -151,8 +187,9 @@ import {
 } from '~/constants/record';
 import { useRecords } from '~/composables/useRecords';
 import { useRecordDetail } from '~/composables/useRecordDetail';
-import type { RecordRange } from '~/types/record';
+import type { ILinkedRecord, RecordRange } from '~/types/record';
 import { createCsvBlob, downloadBlob } from '~/utils/download';
+import { periodFromRange, recordDatesLimits, toDateInputValue, validateRecordDates } from '~/utils/recordPeriod';
 import { buildExportFileName, buildRecordCsv, buildRecordsCsv, EXPORT_RECORDS_FILE_PREFIX, ExportExt } from '~/utils/exporters';
 import { updateRecordName } from '~/utils/records';
 
@@ -176,8 +213,21 @@ const MESSAGES = {
 
 const { showToast } = useToast();
 const { gtag } = useGtag();
+const route = useRoute();
+
+/** ?record=…&at=… (儀表板 最近幾次兌換): open on that record */
+const linkedRecord = computed<ILinkedRecord | null>(() => {
+  const id = route.query[LogsQuery.Record];
+  const createdAt = route.query[LogsQuery.CreatedAt];
+  return typeof id === 'string' && typeof createdAt === 'string' && !Number.isNaN(Date.parse(createdAt))
+    ? { id, createdAt }
+    : null;
+});
+
 const {
   range,
+  customDates,
+  setCustomDates,
   page,
   records,
   totalCount,
@@ -190,7 +240,7 @@ const {
   status: listStatus,
   error: listError,
   refresh: refreshList,
-} = await useRecords();
+} = await useRecords(linkedRecord.value);
 const {
   selectedRecord,
   status: detailStatus,
@@ -241,6 +291,9 @@ const selectedCash = computed(() =>
     .sort((a, b) => b.denomination - a.denomination),
 );
 
+/** The selected fill slides only when a row is clicked; a new range / page shows its first row at once */
+const isRowSliding = ref(false);
+
 // Mobile: the selected record is an open RecordDetailCard; tapping its head again folds it
 const isInlineCollapsed = ref(false);
 
@@ -260,13 +313,42 @@ const scrollListToTop = () => {
   if (!isDesktop()) listElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
+// 自訂 查詢區間
+const isCustomOpen = ref(!!customDates.value);
+const customStart = ref(customDates.value?.start ?? '');
+const customEnd = ref(customDates.value?.end ?? '');
+const customError = ref('');
+const dateLimits = computed(() => recordDatesLimits());
+
+const onCustomRangeClick = () => {
+  if (isCustomOpen.value) return;
+  isCustomOpen.value = true;
+  customError.value = '';
+  // Start from the 近 N 個月 shown now
+  customStart.value = toDateInputValue(new Date(periodFromRange(range.value).from));
+  customEnd.value = dateLimits.value.max;
+};
+
+const onCustomRangeSubmit = () => {
+  const dates = { start: customStart.value, end: customEnd.value };
+  customError.value = validateRecordDates(dates);
+  if (customError.value) return;
+  isRowSliding.value = false;
+  setCustomDates(dates);
+  isInlineCollapsed.value = false;
+  if (scrollElement) scrollElement.scrollTop = 0;
+};
+
 const onRangeClick = (value: RecordRange) => {
+  isRowSliding.value = false;
+  isCustomOpen.value = false;
   setRange(value);
   isInlineCollapsed.value = false;
   if (scrollElement) scrollElement.scrollTop = 0;
 };
 
 const onPageChange = (value: number) => {
+  isRowSliding.value = false;
   setPage(value);
   isInlineCollapsed.value = false;
   scrollListToTop();
@@ -279,6 +361,7 @@ const onYearClick = (year: number) => {
 };
 
 const onRecordClick = async (id: string) => {
+  isRowSliding.value = true;
   if (isDesktop()) {
     selectRecord(id);
     return;
@@ -394,6 +477,50 @@ const onExportRangeClick = async () => {
   @apply text-helper text-muted;
 }
 
+/* Sliding pill behind the pressed chip (as NavPills). With anchor positioning the pressed chip itself
+   turns transparent and the pill paints it; the chips' labels sit above the pill */
+.range-card__chips {
+  @apply relative;
+}
+.range-card__chips :deep(.app-filter-chip__label) {
+  @apply relative z-2;
+}
+.range-card__indicator {
+  @apply absolute z-1 rounded-full bg-nav-active;
+  position-anchor: --range-chip-pressed;
+  top: anchor(top);
+  bottom: anchor(bottom);
+  left: anchor(left);
+  right: anchor(right);
+  transition:
+    top 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    bottom 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    right 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.range-card__chips :deep(.app-filter-chip--pressed) {
+  anchor-name: --range-chip-pressed;
+}
+@supports (anchor-name: --a) {
+  .range-card__chips :deep(.app-filter-chip--pressed) {
+    @apply bg-transparent;
+  }
+}
+
+/* 自訂: two date fields and 查詢 in a row (stacked on narrow screens) */
+.custom-range {
+  @apply flex flex-col gap-2;
+}
+.custom-range__fields {
+  @apply flex flex-wrap items-end gap-3;
+}
+.custom-range__field {
+  @apply min-w-40 flex-1;
+}
+.custom-range__error {
+  @apply text-helper text-warn-text;
+}
+
 .logs-empty {
   @apply p-6 min-h-70;
 }
@@ -432,7 +559,34 @@ const onExportRangeClick = async () => {
   @apply desktop:max-h-dvh;
 }
 .records-list__scroll {
-  @apply desktop:min-h-0 desktop:flex-1 desktop:overflow-y-auto;
+  @apply relative desktop:min-h-0 desktop:flex-1 desktop:overflow-y-auto;
+}
+/* Desktop: the selected (strong) fill slides between rows, like NavPills. The pill sits above the rows'
+   own fills and below their text; with anchor positioning the selected row itself turns transparent */
+.records-list__row > :deep(*) {
+  @apply relative z-2;
+}
+.records-list__row.app-record-row--selected {
+  anchor-name: --records-row-selected;
+}
+.records-list__indicator {
+  @apply absolute z-1 hidden rounded-3xl bg-strong desktop:block;
+  position-anchor: --records-row-selected;
+  position-visibility: anchors-visible;
+  top: anchor(top);
+  bottom: anchor(bottom);
+  left: anchor(left);
+  right: anchor(right);
+}
+.records-list__indicator--sliding {
+  transition:
+    top 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    bottom 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@supports (anchor-name: --a) {
+  .records-list__row.app-record-row--selected {
+    @apply desktop:bg-transparent;
+  }
 }
 /* DS year row 40px tall: 8px padding + 24px line */
 .records-list__year {

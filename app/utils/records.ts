@@ -1,4 +1,4 @@
-import { InputFormat, type INewRecord, type IRecordSummary, type IRecordCounts, type IRecordDetail, type RecordRange } from '~/types/record';
+import { InputFormat, type INewRecord, type IRecordSummary, type IRecordCounts, type IRecordDetail, type IRecordPeriod } from '~/types/record';
 import { FIRST_BATCH, RECORDS_MAX_RESULTS, RECORDS_PAGE_SIZE } from '~/constants/record';
 import type { IDashboardData } from '~/types/dashboard';
 
@@ -58,12 +58,6 @@ const toRecordDetail = (row: IRecordRow): IRecordDetail => ({
   rows: row.rows,
 });
 
-const toRangeStart = (range: RecordRange) => {
-  const since = new Date();
-  since.setMonth(since.getMonth() - range);
-  return since.toISOString();
-};
-
 export async function fetchDashboard(): Promise<IDashboardData> {
   const supabase = useNuxtApp().$supabase;
   const { error, data } = await supabase.rpc('get_dashboard_summary');
@@ -75,14 +69,17 @@ export async function fetchDashboard(): Promise<IDashboardData> {
   return data as IDashboardData;
 }
 
-export async function fetchRecordList(range: RecordRange, page: number): Promise<{ records: IRecordSummary[]; totalCount: number }> {
+export async function fetchRecordList(period: IRecordPeriod, page: number): Promise<{ records: IRecordSummary[]; totalCount: number }> {
   const from = (page - 1) * RECORDS_PAGE_SIZE;
   const to = Math.min(page * RECORDS_PAGE_SIZE, RECORDS_MAX_RESULTS) - 1;
   const supabase = useNuxtApp().$supabase;
 
-  const { error, count, data } = await supabase.from('records')
+  let query = supabase.from('records')
     .select('id, name, created_at, entry_count, total_amount', { count: 'exact' })
-    .gte('created_at', toRangeStart(range))
+    .gte('created_at', period.from);
+  if (period.to) query = query.lt('created_at', period.to);
+
+  const { error, count, data } = await query
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -121,11 +118,14 @@ export async function updateRecordName(recordId: string, name: string) {
   }
 }
 
-export async function fetchRangeRecords(range: RecordRange): Promise<IRecordCounts[]> {
+export async function fetchRangeRecords(period: IRecordPeriod): Promise<IRecordCounts[]> {
   const supabase = useNuxtApp().$supabase;
-  const { error, data } = await supabase.from('records')
+  let query = supabase.from('records')
     .select('id, name, created_at, entry_count, total_amount, denominations, denomination_counts')
-    .gte('created_at', toRangeStart(range))
+    .gte('created_at', period.from);
+  if (period.to) query = query.lt('created_at', period.to);
+
+  const { error, data } = await query
     .order('created_at', { ascending: false })
     .limit(RECORDS_MAX_RESULTS);
 

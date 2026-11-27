@@ -20,6 +20,24 @@ export enum RecordRange {
   SixMonths = 6,
 }
 
+/** The 查詢區間 as created_at bounds (ISO 8601): from (inclusive) … to (exclusive; none = up to now) */
+export interface IRecordPeriod {
+  from: string;
+  to?: string;
+}
+
+/** A 自訂 查詢區間 as picked in the date inputs: YYYY-MM-DD, both days included (local time) */
+export interface IRecordDates {
+  start: string;
+  end: string;
+}
+
+/** A record to open on the 紀錄 page (from 儀表板 最近幾次兌換): its id and created_at */
+export interface ILinkedRecord {
+  id: string;
+  createdAt: string;
+}
+
 /** One row of the 紀錄 list (camelCase of the records table, without the heavy columns) */
 export interface IRecordSummary {
   id: string;

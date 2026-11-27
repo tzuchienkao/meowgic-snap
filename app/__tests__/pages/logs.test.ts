@@ -107,6 +107,10 @@ const createSupabase = (table: IRecordRow[]) => {
         rows = rows.filter((row) => String(row[column]) >= value);
         return query;
       },
+      lt(column: Column, value: string) {
+        rows = rows.filter((row) => String(row[column]) < value);
+        return query;
+      },
       eq(column: Column, value: unknown) {
         rows = rows.filter((row) => row[column] === value);
         return query;
@@ -186,6 +190,7 @@ const useAsyncDataStub = async <T>(_key: string, handler: () => Promise<T>, opti
 };
 
 let table: IRecordRow[];
+let query: Record<string, string>;
 let supabase: ReturnType<typeof createSupabase>;
 let showToast: ReturnType<typeof vi.fn>;
 let gtag: ReturnType<typeof vi.fn>;
@@ -249,6 +254,8 @@ beforeEach(() => {
   matchesDesktop = true;
   scrollIntoView = vi.fn();
   Element.prototype.scrollIntoView = scrollIntoView as unknown as Element['scrollIntoView'];
+  query = {};
+  vi.stubGlobal('useRoute', () => ({ query }));
   vi.stubGlobal('useNuxtApp', () => ({ $supabase: supabase.client }));
   vi.stubGlobal('useAsyncData', useAsyncDataStub);
   vi.stubGlobal('useToast', () => ({ showToast }));
@@ -278,7 +285,7 @@ describe('pages/logs.vue', () => {
   describe('查詢區間', () => {
     it('starts at 近 3 個月 and explains the limits, saying it is not an accounting voucher', async () => {
       const w = await mountPage();
-      expect(w.findAll('.app-filter-chip').map((c) => c.text())).toEqual(['近 1 個月', '近 3 個月', '近半年']);
+      expect(w.findAll('.app-filter-chip').map((c) => c.text())).toEqual(['近 1 個月', '近 3 個月', '近半年', '自訂']);
       expect(w.find('.app-filter-chip--pressed').text()).toBe('近 3 個月');
       expect(w.findAll('.range-card__hint').map((h) => h.text())).toEqual([
         '紀錄保存 2 年 · 一次最多查半年 · 最多顯示 500 筆 · 每頁 50 筆',
@@ -306,6 +313,110 @@ describe('pages/logs.vue', () => {
       await click(chip(w, '近半年'));
       expect(rows(w)).toHaveLength(50);
       expect(caption(w)).toBe('第 1–50 筆，共 60 筆');
+    });
+  });
+
+  describe('自訂 查詢區間', () => {
+    const dateInputs = (w: VueWrapper) => w.findAll<HTMLInputElement>('.custom-range input[type="date"]');
+    const error = (w: VueWrapper) => w.find('.custom-range__error');
+    const pick = async (w: VueWrapper, start: string, end: string) => {
+      await dateInputs(w)[0]!.setValue(start);
+      await dateInputs(w)[1]!.setValue(end);
+      await click(button(w, '查詢'));
+    };
+    /** Records whose created_at falls on these local days */
+    const countBetween = (start: string, end: string) =>
+      table.filter((row) => {
+        const day = new Date(row.created_at);
+        const value = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        return value >= start && value <= end;
+      }).length;
+
+    it('自訂 opens two date fields from the shown range to today, within 2 years', async () => {
+      const w = await mountPage();
+      expect(w.find('.custom-range').exists()).toBe(false);
+      await chip(w, '自訂').trigger('click');
+      expect(w.find('.app-filter-chip--pressed').text()).toBe('自訂');
+      const [start, end] = dateInputs(w);
+      expect(start!.element.value).toBe('2026-08-27');
+      expect(end!.element.value).toBe('2026-11-27');
+      expect(start!.attributes('min')).toBe('2024-11-27');
+      expect(end!.attributes('max')).toBe('2026-11-27');
+      // The list stays until 查詢
+      expect(rows(w)).toHaveLength(29);
+    });
+
+    it('查詢 shows the records of those days, from page 1', async () => {
+      const w = await mountPage();
+      await chip(w, '自訂').trigger('click');
+      await pick(w, '2026-06-01', '2026-07-31');
+      expect(error(w).exists()).toBe(false);
+      const expected = countBetween('2026-06-01', '2026-07-31');
+      expect(rows(w)).toHaveLength(expected);
+      expect(caption(w)).toBe(`第 1–${expected} 筆，共 ${expected} 筆`);
+      expect(rows(w)[0]!.find('.app-record-row__meta').text()).toMatch(/^2026\/07\//);
+      expect(rows(w)[0]!.classes()).toContain('app-record-row--selected');
+    });
+
+    it.each([
+      ['', '2026-11-27', '請選開始和結束日期喵'],
+      ['2026-10-01', '2026-09-01', '開始日期要在結束日期之前喵'],
+      ['2026-01-01', '2026-07-02', '一次最多查半年喵'],
+      // Days outside min / max: utils/recordPeriod.test.ts (happy-dom empties such a date input)
+    ])('does not query %s – %s: %s', async (start, end, message) => {
+      const w = await mountPage();
+      await chip(w, '自訂').trigger('click');
+      await pick(w, start, end);
+      expect(error(w).text()).toBe(message);
+      expect(rows(w)).toHaveLength(29);
+    });
+
+    it('a 近 N 個月 chip closes the date fields and queries that range', async () => {
+      const w = await mountPage();
+      await chip(w, '自訂').trigger('click');
+      await pick(w, '2026-06-01', '2026-07-31');
+      await click(chip(w, '近 1 個月'));
+      expect(w.find('.custom-range').exists()).toBe(false);
+      expect(w.find('.app-filter-chip--pressed').text()).toBe('近 1 個月');
+      expect(rows(w)).toHaveLength(9);
+    });
+
+    it('匯出這個區間 CSV exports the 自訂 days', async () => {
+      const w = await mountPage();
+      await chip(w, '自訂').trigger('click');
+      await pick(w, '2026-06-01', '2026-07-31');
+      await click(button(w, '匯出這個區間 CSV'));
+      const { lines } = await lastDownload();
+      expect(lines).toHaveLength(1 + countBetween('2026-06-01', '2026-07-31') + 1);
+    });
+  });
+
+  describe('a record linked from 儀表板', () => {
+    it('opens on it, in the shortest range that has it', async () => {
+      query = { record: 'record-3', at: table[2]!.created_at };
+      const w = await mountPage();
+      expect(w.find('.app-filter-chip--pressed').text()).toBe('近 1 個月');
+      expect(rows(w)[2]!.classes()).toContain('app-record-row--selected');
+      expect(detailName(w)).toBe(table[2]!.name);
+    });
+
+    it('an older one opens 自訂, ending on its day so it comes first', async () => {
+      const linked = table[62]!;
+      query = { record: linked.id, at: linked.created_at };
+      const w = await mountPage();
+      expect(w.find('.app-filter-chip--pressed').text()).toBe('自訂');
+      const [start, end] = w.findAll<HTMLInputElement>('.custom-range input[type="date"]');
+      expect(end!.element.value).toBe('2026-05-18');
+      expect(start!.element.value).toBe('2025-11-18');
+      expect(rows(w)[0]!.classes()).toContain('app-record-row--selected');
+      expect(detailName(w)).toBe(linked.name);
+    });
+
+    it('ignores a link without a valid date', async () => {
+      query = { record: 'record-3', at: 'yesterday' };
+      const w = await mountPage();
+      expect(w.find('.app-filter-chip--pressed').text()).toBe('近 3 個月');
+      expect(detailName(w)).toBe('11月薪資');
     });
   });
 
@@ -456,6 +567,19 @@ describe('pages/logs.vue', () => {
         await card(w).find('.app-record-detail-card__cash .app-button').trigger('click');
         expect(vi.mocked(downloadBlob)).toHaveBeenCalledTimes(1);
       });
+    });
+
+    it('the selected fill slides on a row click, but not to the first row of a new range or page', async () => {
+      const w = await mountPage();
+      const indicator = () => w.find('.records-list__indicator');
+      expect(indicator().classes()).not.toContain('records-list__indicator--sliding');
+      await click(rows(w)[2]!);
+      expect(indicator().classes()).toContain('records-list__indicator--sliding');
+      await click(chip(w, '近半年'));
+      expect(indicator().classes()).not.toContain('records-list__indicator--sliding');
+      await click(rows(w)[1]!);
+      await click(w.find('[aria-label="下一頁"]'));
+      expect(indicator().classes()).not.toContain('records-list__indicator--sliding');
     });
 
     it('goes back to the newest when the range changes', async () => {
@@ -650,6 +774,6 @@ describe('pages/logs.vue', () => {
     expect(slot.find('.logs-empty__text').text()).toBe('這段期間沒有兌換紀錄喵');
     expect(w.find('.page-logs__header .app-button').attributes('disabled')).toBeDefined();
     // The range chips stay, so another range can still be picked
-    expect(w.findAll('.app-filter-chip')).toHaveLength(3);
+    expect(w.findAll('.app-filter-chip')).toHaveLength(4);
   });
 });

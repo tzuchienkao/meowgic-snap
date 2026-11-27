@@ -18,6 +18,25 @@ export const RECORD_RANGE_OPTIONS: readonly { value: RecordRange; label: string 
   { value: RecordRange.SixMonths, label: '近半年' },
 ];
 export const DEFAULT_RECORD_RANGE = RecordRange.ThreeMonths;
+export const CUSTOM_RANGE_LABEL = '自訂';
+/** Records are kept (and readable, RLS) for 2 years; a 查詢區間 spans at most half a year */
+export const RECORD_RETENTION_YEARS = 2;
+export const MAX_RANGE_MONTHS = 6;
+
+/** 自訂 查詢區間 validation messages */
+export const RECORD_DATES_ERRORS = {
+  required: '請選開始和結束日期喵',
+  order: '開始日期要在結束日期之前喵',
+  tooOld: `只能查 ${RECORD_RETENTION_YEARS} 年內的紀錄喵`,
+  future: '結束日期不能超過今天喵',
+  tooLong: '一次最多查半年喵',
+} as const;
+
+/** Query of a 紀錄 page link that opens one record (儀表板 最近幾次兌換) */
+export enum LogsQuery {
+  Record = 'record',
+  CreatedAt = 'at',
+}
 
 /** How a record's input format reads on the 紀錄 page */
 export const INPUT_FORMAT_LABEL: Record<InputFormat, string> = {
