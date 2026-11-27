@@ -34,6 +34,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDate, formatNumber } from '~/utils/format';
 /**
  * 紀錄頁 detail of one record on desktop (right column): the dark name / total card and 這次要準備的現金.
  * Mobile shows AppRecordDetailCard in the list instead.
@@ -46,14 +47,6 @@ import type { IRecordDetail } from '~/types/record';
 const { record } = defineProps<{ record: IRecordDetail }>();
 
 const emit = defineEmits<{ rename: []; export: [] }>();
-
-const formatNumber = (value: number) => value.toLocaleString('en-US');
-const pad2 = (value: number) => String(value).padStart(2, '0');
-/** ISO → "2026/10/17" (local time) */
-const formatDate = (iso: string) => {
-  const date = new Date(iso);
-  return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
-};
 
 /** 這次要準備的現金: non-zero counts, large → small */
 const cash = computed(() =>

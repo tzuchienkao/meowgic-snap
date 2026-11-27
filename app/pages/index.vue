@@ -42,11 +42,11 @@
                   <p>每次最多可貼入 {{ MAX_ENTRIES }} 筆。</p>
                 </li>
                 <li class="my-1">
-                  <p>每筆金額之整數部分上限為 {{ formatAmount(MAX_AMOUNT_PER_ENTRY) }}。</p>
+                  <p>每筆金額之整數部分上限為 {{ formatNumber(MAX_AMOUNT_PER_ENTRY) }}。</p>
                 </li>
                 <template v-if="includesNames">
                   <li class="my-1">
-                    <p>姓名可重複多筆，系統會自動加總（每人合計上限同為 {{ formatAmount(MAX_AMOUNT_PER_ENTRY) }}）。</p>
+                    <p>姓名可重複多筆，系統會自動加總（每人合計上限同為 {{ formatNumber(MAX_AMOUNT_PER_ENTRY) }}）。</p>
                   </li>
                   <li class="my-1">
                     <p>姓名最多 {{ MAX_NAME_LENGTH }} 字；金額只能是正整數，前後只能加幣別或單位（如 NT$、元）。</p>
@@ -89,7 +89,7 @@
                 :disabled="isProcessing"
               />
               <app-chip class="money-snap__counter" :tone="entryCount > MAX_ENTRIES ? 'warn' : 'soft'">
-                已貼 {{ entryCount }} / {{ formatAmount(MAX_ENTRIES) }} 筆
+                已貼 {{ entryCount }} / {{ formatNumber(MAX_ENTRIES) }} 筆
               </app-chip>
             </div>
             <app-alert
@@ -171,19 +171,19 @@
             <div class="over-card__text">
               <h2 class="over-card__title">太多了喵，算不動 (=ΦдΦ=)</h2>
               <p class="over-card__desc">
-                你貼了 <b class="text-ink">{{ formatAmount(entryCount) }}</b> 筆，每次最多只支援
-                {{ formatAmount(MAX_ENTRIES) }} 筆，多出 <b class="text-warn-text">{{ formatAmount(extraCount) }}</b> 筆。
+                你貼了 <b class="text-ink">{{ formatNumber(entryCount) }}</b> 筆，每次最多只支援
+                {{ formatNumber(MAX_ENTRIES) }} 筆，多出 <b class="text-warn-text">{{ formatNumber(extraCount) }}</b> 筆。
               </p>
             </div>
             <div class="over-card__split">
               <div class="over-card__split-item">
                 <span class="over-card__split-label">這次先算</span>
-                <span class="over-card__split-value">{{ formatAmount(MAX_ENTRIES) }} 筆</span>
+                <span class="over-card__split-value">{{ formatNumber(MAX_ENTRIES) }} 筆</span>
               </div>
               <span class="over-card__split-plus" aria-hidden="true">＋</span>
               <div class="over-card__split-item">
                 <span class="over-card__split-label">下一批</span>
-                <span class="over-card__split-value text-warn-text">{{ formatAmount(extraCount) }} 筆</span>
+                <span class="over-card__split-value text-warn-text">{{ formatNumber(extraCount) }} 筆</span>
               </div>
             </div>
             <app-button variant="primary" full :label="calcFirstLabel" @click="onCalcFirstClick" />
@@ -204,19 +204,19 @@
         <div v-else class="result-area">
           <app-total-card
             class="summary-card"
-            :amount="formatAmount(resultState.totalAmount)"
+            :amount="formatNumber(resultState.totalAmount)"
             :chips="summaryChips"
           >
             <!-- Only the first MAX_ENTRIES were calculated: offer the next batch -->
             <div v-if="truncatedCount" class="truncated-notice">
               <span class="truncated-notice__text">
-                只算了前 {{ formatAmount(MAX_ENTRIES) }} 筆，還有 {{ formatAmount(truncatedCount) }} 筆等下一批喵。
+                只算了前 {{ formatNumber(MAX_ENTRIES) }} 筆，還有 {{ formatNumber(truncatedCount) }} 筆等下一批喵。
               </span>
               <app-button
                 v-if="pendingLines.length"
                 variant="primary"
                 size="sm"
-                :label="`算下一批 ${formatAmount(pendingLines.length)} 筆 ›`"
+                :label="`算下一批 ${formatNumber(pendingLines.length)} 筆 ›`"
                 @click="onNextBatchClick"
               />
             </div>
@@ -279,7 +279,7 @@
               <li v-for="row in resultRows" :key="row.name" class="summary-card__row">
                 <div class="summary-card__row-head">
                   <span>{{ row.name }}</span>
-                  <span>{{ formatAmount(row.total) }} {{ CurrencyUnit.Dollar }}</span>
+                  <span>{{ formatNumber(row.total) }} {{ CurrencyUnit.Dollar }}</span>
                 </div>
                 <div class="summary-card__row-body">
                   <app-denom-badge
@@ -316,6 +316,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatNumber } from '~/utils/format';
 import { computed, ref } from 'vue';
 
 import { CurrencyUnit } from '~/constants/currency';
@@ -392,7 +393,7 @@ const RECORD_MESSAGES = {
   saveNoteAmountOnly: '計算結果會存在雲端 2 年，只有你看得到'
 } as const;
 
-const nextBatchMessage = (count: number) => `已帶入下一批 ${formatAmount(count)} 筆並算好了喵`;
+const nextBatchMessage = (count: number) => `已帶入下一批 ${formatNumber(count)} 筆並算好了喵`;
 
 // State
 const isLogin = computed(() => !!user.value);
@@ -444,13 +445,13 @@ const extraCount = computed(() => Math.max(0, entryCount.value - MAX_ENTRIES));
 
 const calcFirstLabel = computed(() =>
   isLogin.value
-    ? `只算前 ${formatAmount(MAX_ENTRIES)} 筆並存檔`
-    : `只算前 ${formatAmount(MAX_ENTRIES)} 筆`,
+    ? `只算前 ${formatNumber(MAX_ENTRIES)} 筆並存檔`
+    : `只算前 ${formatNumber(MAX_ENTRIES)} 筆`,
 );
 const copyRestLabel = computed(() =>
   isRestCopied.value
     ? '已複製 ✓'
-    : `複製第 ${formatAmount(MAX_ENTRIES + 1)} 筆之後的 ${formatAmount(extraCount.value)} 筆`,
+    : `複製第 ${formatNumber(MAX_ENTRIES + 1)} 筆之後的 ${formatNumber(extraCount.value)} 筆`,
 );
 
 // Line errors start with 「第 N 行」; anything else (e.g. the generic format message) is shown as-is.
@@ -511,7 +512,7 @@ const remainderNotice = computed(() => {
     ),
   );
   const fix = isLogin.value ? '到設定頁把它打開吧。' : '到左邊的偏好設定把它打開吧。';
-  return `還有 ${formatAmount(total)} ${CurrencyUnit.Dollar}找不開喵，因為你關掉了 ${formatDenominationLabel(needed)}。${fix}`;
+  return `還有 ${formatNumber(total)} ${CurrencyUnit.Dollar}找不開喵，因為你關掉了 ${formatDenominationLabel(needed)}。${fix}`;
 });
 
 // Totals per denomination across everyone (bills large → small, then coins)
@@ -547,10 +548,6 @@ const coinCells = computed(() =>
     count: denominationTotals.value[value] ?? 0,
   })),
 );
-
-const formatAmount = (amount: number) => {
-  return new Intl.NumberFormat('en-US').format(amount);
-};
 
 // Smallest → largest, zero counts dropped
 const toDenominationItems = (denominations: Record<number, number>): IDenominationItem[] =>
@@ -737,7 +734,7 @@ const onCopyRestClick = async () => {
     entry_count: count,
   });
   if (!copied) {
-    copyBox.value = { title: `複製剩下的 ${formatAmount(count)} 筆`, text };
+    copyBox.value = { title: `複製剩下的 ${formatNumber(count)} 筆`, text };
     return;
   }
   isRestCopied.value = true;

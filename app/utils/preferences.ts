@@ -3,6 +3,7 @@
  * Pure helpers — the reactive state lives in composables/usePreferences.ts.
  */
 import { CURRENCY_PREFIX } from '~/constants/currency';
+import { formatNumber } from '~/utils/format';
 import { ALL_DENOMINATIONS, DEFAULT_DENOMINATIONS, isBill } from '~/utils/moneyParser';
 import {
   CSV_AMOUNT_HEADER,
@@ -37,7 +38,7 @@ export const RECOMMENDED_DENOMINATION = Math.min(...ALL_DENOMINATIONS);
 
 /** "NT$2,000" */
 export const formatDenominationLabel = (value: number) =>
-  `${CURRENCY_PREFIX}${value.toLocaleString('en-US')}`;
+  `${CURRENCY_PREFIX}${formatNumber(value)}`;
 
 const KNOWN_DENOMINATIONS = new Set<number>(ALL_DENOMINATIONS);
 

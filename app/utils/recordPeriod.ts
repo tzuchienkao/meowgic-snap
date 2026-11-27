@@ -1,7 +1,6 @@
+import { pad2 } from '~/utils/format';
 import { MAX_RANGE_MONTHS, RECORD_DATES_ERRORS, RECORD_RANGE_OPTIONS, RECORD_RETENTION_YEARS } from '~/constants/record';
 import type { IRecordDates, IRecordPeriod, RecordRange } from '~/types/record';
-
-const pad2 = (value: number) => String(value).padStart(2, '0');
 
 /** Local date → "YYYY-MM-DD" (the value of an <input type="date">) */
 export const toDateInputValue = (date: Date): string =>

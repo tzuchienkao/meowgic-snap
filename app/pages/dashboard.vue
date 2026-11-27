@@ -91,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDate, formatNumber } from '~/utils/format';
 import { computed } from 'vue';
 import { CurrencyUnit } from '~/constants/currency';
 import { RouteName } from '~/constants/navigation';
@@ -117,14 +118,6 @@ const hasRecords = computed(() => {
 const hasError = computed(() => {
   return !!error.value;
 });
-
-const formatNumber = (value: number) => value.toLocaleString('en-US');
-const pad2 = (value: number) => String(value).padStart(2, '0');
-/** ISO → "2026/10/17" (local time) */
-const formatDate = (iso: string) => {
-  const date = new Date(iso);
-  return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
-};
 
 // 每月金額趨勢: highest month in accent, labels like "107k" ("—" for an empty month)
 const monthlyBars = computed(() => {

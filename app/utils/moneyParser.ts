@@ -1,3 +1,4 @@
+import { formatNumber } from '~/utils/format';
 /**
  * Parses money snap input (CSV or manual entries)
  * Supports formats: "姓名,金額" with various amount formats
@@ -64,8 +65,6 @@ type LineErrorReason =
 type LineResult =
   | { ok: true; entry: ParsedEntry }
   | { ok: false; reason: LineErrorReason };
-
-const formatNumber = (value: number) => value.toLocaleString('en-US');
 
 // Design system: state what happened, after the line content in 「」.
 const LINE_ERROR_TEXT: Record<LineErrorReason, string> = {

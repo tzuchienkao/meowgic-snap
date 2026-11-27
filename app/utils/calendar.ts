@@ -1,6 +1,6 @@
 /** Local-day helpers for calendars: days are local midnights, keyed "YYYY-MM-DD" (an <input type="date"> value) */
 
-const pad2 = (value: number) => String(value).padStart(2, '0');
+import { pad2 } from '~/utils/format';
 
 /** Local day → "YYYY-MM-DD" */
 export const toDayKey = (date: Date): string => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;

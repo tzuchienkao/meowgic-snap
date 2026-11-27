@@ -190,6 +190,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDate, formatNumber } from '~/utils/format';
 import { computed, nextTick, ref } from 'vue';
 import { AnalyticsEvent, AnalyticsResult } from '~/constants/analytics';
 import {
@@ -273,14 +274,6 @@ const isDetailLoading = computed(() => detailStatus.value === AsyncDataStatus.Pe
 const hasDetailError = computed(() => !!detailError.value);
 /** The record the detail shows: none when it could not be loaded */
 const shownRecord = computed(() => (hasDetailError.value ? undefined : selectedRecord.value));
-
-const formatNumber = (value: number) => value.toLocaleString('en-US');
-const pad2 = (value: number) => String(value).padStart(2, '0');
-/** ISO → "2026/10/17" (local time) */
-const formatDate = (iso: string) => {
-  const date = new Date(iso);
-  return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
-};
 
 // List: the current page grouped by year (a 查詢區間 can cross New Year); a year can be folded
 const yearGroups = computed(() => {

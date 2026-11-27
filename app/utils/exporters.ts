@@ -3,6 +3,7 @@
  * Everything takes the denominations used for the calculation, so a custom set
  * (偏好設定) works without changes here.
  */
+import { formatDate, formatNumber, pad2 } from '~/utils/format';
 import { CURRENCY_PREFIX, CurrencyUnit } from '~/constants/currency';
 import { DenomKind } from '~/types/denomination';
 import { InputFormat, type IRecordCounts, type IRecordDetail } from '~/types/record';
@@ -50,8 +51,6 @@ export enum ExportExt {
   Csv = 'csv'
 }
 
-const formatNumber = (value: number) => new Intl.NumberFormat('en-US').format(value);
-const pad2 = (value: number) => String(value).padStart(2, '0');
 const unitOf = (denomination: number) => (isBill(denomination) ? CurrencyUnit.Bill : CurrencyUnit.Coin);
 const largeToSmall = (denominations: readonly number[]) => [...denominations].sort((a, b) => b - a);
 
@@ -178,7 +177,7 @@ export function buildRecordsCsv(records: readonly IRecordCounts[]): string {
       totals[d] = (totals[d] ?? 0) + (record.denominationCounts[d] ?? 0);
     });
     return [
-      `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`,
+      formatDate(date),
       record.name,
       record.entryCount,
       record.totalAmount,
@@ -197,8 +196,7 @@ export function buildRecordsCsv(records: readonly IRecordCounts[]): string {
 /** 2026/11/24 14:32:05 (local time) */
 export function formatSlipTimestamp(date: Date): string {
   return (
-    `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} ` +
-    `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`
+    `${formatDate(date)} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`
   );
 }
 

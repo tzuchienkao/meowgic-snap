@@ -1,8 +1,9 @@
 <template>
-  <span class="app-denom-badge" :class="[`app-denom-badge--${size}`, onSurface ? 'app-denom-badge--on-surface' : 'app-denom-badge--on-soft']"><span class="app-denom-badge__value">{{ CURRENCY_PREFIX }}{{ formatted(value) }}</span> <span class="app-denom-badge__count" :class="`app-denom-badge__count--${resolvedKind}`">{{ formatted(count) }} <span class="app-denom-badge__unit">{{ resolvedKind === DenomKind.Bill ? CurrencyUnit.Bill : CurrencyUnit.Coin }}</span></span></span>
+  <span class="app-denom-badge" :class="[`app-denom-badge--${size}`, onSurface ? 'app-denom-badge--on-surface' : 'app-denom-badge--on-soft']"><span class="app-denom-badge__value">{{ CURRENCY_PREFIX }}{{ formatNumber(value) }}</span> <span class="app-denom-badge__count" :class="`app-denom-badge__count--${resolvedKind}`">{{ formatNumber(count) }} <span class="app-denom-badge__unit">{{ resolvedKind === DenomKind.Bill ? CurrencyUnit.Bill : CurrencyUnit.Coin }}</span></span></span>
 </template>
 
 <script setup lang="ts">
+import { formatNumber } from '~/utils/format';
 /**
  * Design system: DenomBadge — "NT$面額 + N 張/個" pill. Bill count on bill-chip, coin count on
  * coin-chip. Never write ×N; only list counts > 0 (the caller filters zeros).
@@ -29,7 +30,6 @@ const {
 }>();
 
 const resolvedKind = computed(() => kind ?? (isBill(value) ? DenomKind.Bill : DenomKind.Coin));
-const formatted = (n: number) => n.toLocaleString('en-US');
 </script>
 
 <style>

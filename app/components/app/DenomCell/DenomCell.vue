@@ -1,12 +1,13 @@
 <template>
   <div class="app-denom-cell" :class="[`app-denom-cell--${kind}`, `app-denom-cell--${resolvedState}`, { 'app-denom-cell--compact': compact }]">
-    <span class="app-denom-cell__value">{{ CURRENCY_PREFIX }}{{ formatted(value) }}</span>
-    <span class="app-denom-cell__count">{{ formatted(count) }}</span>
+    <span class="app-denom-cell__value">{{ CURRENCY_PREFIX }}{{ formatNumber(value) }}</span>
+    <span class="app-denom-cell__count">{{ formatNumber(count) }}</span>
     <span v-if="kind === DenomKind.Bill && !compact" class="app-denom-cell__unit">{{ CurrencyUnit.Bill }}</span>
   </div>
 </template>
 
 <script setup lang="ts">
+import { formatNumber } from '~/utils/format';
 /**
  * Design system: DenomCell — denomination summary cell. Bills = rounded square, coins = circle,
  * always prefixed "NT$". state: top = most-used bill (accent) · has = peach · zero = dashed & faint
@@ -31,7 +32,6 @@ const {
 }>();
 
 const resolvedState = computed(() => state ?? (count > 0 ? DenomCellState.Has : DenomCellState.Zero));
-const formatted = (n: number) => n.toLocaleString('en-US');
 </script>
 
 <style>
