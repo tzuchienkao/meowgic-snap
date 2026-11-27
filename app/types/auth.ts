@@ -4,3 +4,10 @@ import type { SupabaseErrorKind } from '~/utils/supabaseErrors';
 export type ISignInResult =
   | { success: true }
   | { success: false; kind: SupabaseErrorKind; retryAfterSeconds: number | null };
+
+export interface IUser {
+  id: string;
+  email: string;
+  name: string;
+  display_name?: string;
+}

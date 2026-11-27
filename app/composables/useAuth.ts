@@ -1,12 +1,5 @@
-import type { ISignInResult } from '~/types/auth';
+import type { ISignInResult, IUser } from '~/types/auth';
 import { getSupabaseErrorKind, getRetryAfterSeconds } from '~/utils/supabaseErrors'
-
-interface IUser {
-  id: string;
-  email: string;
-  name: string;
-  display_name?: string;
-}
 
 interface IAuthUserFields {
   id: string;
@@ -22,20 +15,15 @@ const toUser = ({ id, email, user_metadata: metadata }: IAuthUserFields): IUser 
 });
 
 export const useAuth = () => {
-  const user = useState('user', () => null);
+  const user = useState<IUser | null>('user', () => null );
   const isAuthenticated = computed(() => !!user.value);
   const isLoading = useState('auth:loading', () => false);
-  const error = useState('auth:error', () => null as string | null);
+  const error = useState<string | null>('auth:error', () => null);
 
   const supabase = useNuxtApp().$supabase;
 
   const setUser = (value: IUser | null) => {
     user.value = value;
-    if (value && import.meta.client) {
-      localStorage.setItem('user', JSON.stringify(value));
-    } else if (!value && import.meta.client) {
-      localStorage.removeItem('user');
-    }
   };
 
   const logout = async () => {
@@ -48,9 +36,6 @@ export const useAuth = () => {
         if (err) throw err;
       }
       user.value = null;
-      if (import.meta.client) {
-        localStorage.removeItem('user');
-      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '登出失敗';
       console.error('Logout error:', err);
@@ -141,9 +126,6 @@ export const useAuth = () => {
 
       if (user.value) {
         user.value.display_name = name;
-        if (import.meta.client) {
-          localStorage.setItem('user', JSON.stringify(user.value));
-        }
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '更新名稱失敗';
