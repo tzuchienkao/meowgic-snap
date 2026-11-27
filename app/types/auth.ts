@@ -10,4 +10,4 @@ export interface IUser {
   email: string;
   name: string;
   display_name?: string;
-}
+};

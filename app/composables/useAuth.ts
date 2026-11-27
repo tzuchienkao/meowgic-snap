@@ -15,7 +15,7 @@ const toUser = ({ id, email, user_metadata: metadata }: IAuthUserFields): IUser 
 });
 
 export const useAuth = () => {
-  const user = useState<IUser | null>('user', () => null );
+  const user = useState<IUser | null>('user', () => null);
   const isAuthenticated = computed(() => !!user.value);
   const isLoading = useState('auth:loading', () => false);
   const error = useState<string | null>('auth:error', () => null);
