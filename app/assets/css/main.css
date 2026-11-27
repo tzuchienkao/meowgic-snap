@@ -74,6 +74,8 @@
   --color-focus: var(--ms-focus);
   --color-rdc-inner: var(--ms-rdc-inner);
   --color-rdc-badge: var(--ms-rdc-badge);
+  --color-dp-range: var(--ms-dp-range);
+  --color-dp-hover: var(--ms-dp-hover);
   --color-slip-bg: var(--ms-slip-bg);
   --color-slip-hero: var(--ms-slip-hero);
   --color-slip-hero-text: var(--ms-slip-hero-text);

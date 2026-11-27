@@ -4,6 +4,7 @@ import { defineComponent, h, ref, Suspense, watch, type WatchSource } from 'vue'
 import AppButton from '../../components/app/Button/Button.vue';
 import AppCard from '../../components/app/Card/Card.vue';
 import AppCatEarCard from '../../components/app/CatEarCard/CatEarCard.vue';
+import AppDatePicker from '../../components/app/DatePicker/DatePicker.vue';
 import AppDenomBadge from '../../components/app/DenomBadge/DenomBadge.vue';
 import AppDialog from '../../components/app/Dialog/Dialog.vue';
 import AppFilterChip from '../../components/app/FilterChip/FilterChip.vue';
@@ -207,6 +208,7 @@ const mountPage = async () => {
         AppButton,
         AppCard,
         AppCatEarCard,
+        AppDatePicker,
         AppDenomBadge,
         AppDialog,
         AppFilterChip,
@@ -369,6 +371,22 @@ describe('pages/logs.vue', () => {
       await pick(w, start, end);
       expect(error(w).text()).toBe(message);
       expect(rows(w)).toHaveLength(29);
+    });
+
+    it('desktop: the DatePicker shows the days, and 套用 queries them', async () => {
+      const w = await mountPage();
+      await chip(w, '自訂').trigger('click');
+      const picker = w.find('.custom-range__picker');
+      expect(picker.find('.app-date-picker__value').text()).toBe('2026/08/27 – 2026/11/27');
+      await picker.find('.app-date-picker__trigger').trigger('click');
+      // Back to June 2026 through the month grid
+      await picker.find('.app-date-picker__title').trigger('click');
+      await picker.findAll('.app-date-picker__choice')[5]!.trigger('click');
+      await picker.find('[data-day="2026-06-01"]').trigger('click');
+      await picker.find('[data-day="2026-06-30"]').trigger('click');
+      await click(picker.findAll('.app-date-picker__footer button').find((b) => b.text() === '套用')!);
+      expect(picker.find('.app-date-picker__value').text()).toBe('2026/06/01 – 2026/06/30');
+      expect(rows(w)).toHaveLength(countBetween('2026-06-01', '2026-06-30'));
     });
 
     it('a 近 N 個月 chip closes the date fields and queries that range', async () => {

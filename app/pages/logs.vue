@@ -27,10 +27,26 @@
           @click="onRangeClick(option.value)"
         />
         <app-filter-chip :label="CUSTOM_RANGE_LABEL" :pressed="isCustomOpen" @click="onCustomRangeClick" />
+        <!-- 自訂 on desktop: the DS DatePicker right after the chip (as tall as it); 套用 queries.
+             Mobile: the native date inputs below (the phone's own picker), then 查詢 -->
+        <app-date-picker
+          v-if="isCustomOpen"
+          class="custom-range__picker"
+          size="sm"
+          aria-label="自訂查詢區間"
+          :model-value="{ start: customStart, end: customEnd }"
+          :min="dateLimits.min"
+          :max="dateLimits.max"
+          :max-span-months="MAX_RANGE_MONTHS"
+          :invalid="!!customError"
+          @update:model-value="onCustomRangePick"
+        />
         <!-- Slides to the pressed chip, like NavPills -->
         <span class="range-card__indicator" aria-hidden="true" />
       </div>
-      <!-- 自訂: pick the days (within 2 years, at most half a year), then 查詢 -->
+      <p v-if="isCustomOpen && customError" class="custom-range__error custom-range__error--desktop" role="alert">
+        {{ customError }}
+      </p>
       <form v-if="isCustomOpen" class="custom-range" novalidate @submit.prevent="onCustomRangeSubmit">
         <div class="custom-range__fields">
           <app-input
@@ -180,11 +196,13 @@ import {
   CUSTOM_RANGE_LABEL,
   INPUT_FORMAT_LABEL,
   LogsQuery,
+  MAX_RANGE_MONTHS,
   MAX_RECORD_NAME_LENGTH,
   RECORD_RANGE_OPTIONS,
   RECORDS_MAX_RESULTS,
   RECORDS_PAGE_SIZE,
 } from '~/constants/record';
+import type { IDateRange } from '~/components/app/DatePicker/IDatePicker';
 import { useRecords } from '~/composables/useRecords';
 import { useRecordDetail } from '~/composables/useRecordDetail';
 import type { ILinkedRecord, RecordRange } from '~/types/record';
@@ -337,6 +355,13 @@ const onCustomRangeSubmit = () => {
   setCustomDates(dates);
   isInlineCollapsed.value = false;
   if (scrollElement) scrollElement.scrollTop = 0;
+};
+
+/** Desktop DatePicker 套用 */
+const onCustomRangePick = ({ start, end }: IDateRange) => {
+  customStart.value = start;
+  customEnd.value = end;
+  onCustomRangeSubmit();
 };
 
 const onRangeClick = (value: RecordRange) => {
@@ -508,8 +533,11 @@ const onExportRangeClick = async () => {
 }
 
 /* 自訂: two date fields and 查詢 in a row (stacked on narrow screens) */
+.custom-range__picker {
+  @apply hidden w-80 desktop:flex;
+}
 .custom-range {
-  @apply flex flex-col gap-2;
+  @apply flex flex-col gap-2 desktop:hidden;
 }
 .custom-range__fields {
   @apply flex flex-wrap items-end gap-3;
@@ -519,6 +547,9 @@ const onExportRangeClick = async () => {
 }
 .custom-range__error {
   @apply text-helper text-warn-text;
+}
+.custom-range__error--desktop {
+  @apply hidden desktop:block;
 }
 
 .logs-empty {
