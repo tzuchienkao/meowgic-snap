@@ -1,6 +1,6 @@
 # 資料庫規劃：兌換紀錄（Supabase）
 
-> 狀態：**規劃完成，尚未建立**。決定事項見第 6 節；建立用的 SQL 在 `supabase/migrations/`（見第 7 節）。
+> 狀態：**已建立，首頁、儀表板、紀錄頁都已串接**（見第 8 節）。決定事項見第 6 節；建立用的 SQL 在 `supabase/migrations/`（見第 7 節）。
 
 ## 1. 目標
 
@@ -28,7 +28,7 @@
 | `total_amount` | `bigint` | ✓ | — | ≥ 0 | 總金額（1,000 筆加總可能超過 `integer` 上限） |
 | `denominations` | `integer[]` | ✓ | — | — | 這次啟用的面額，決定 CSV 欄位 |
 | `denomination_counts` | `jsonb` | ✓ | — | — | 各面額張數 / 個數，例如 `{"1000": 3, "100": 2}` |
-| `rows` | `jsonb` | ✓ | — | — | 每筆明細，例如 `[{"name": "張三", "total": 18500}]`，`amount` 格式的 `name` 為 `null` |
+| `rows` | `jsonb` | ✓ | — | — | 每筆明細，例如 `[{"name": "張三", "total": 18500}]`；`amount` 格式沒有姓名，`name` 存解析時給的「第 N 筆」（例如 `"第 3 筆"`），明細和 CSV 直接顯示 |
 | `created_at` | `timestamptz` | ✓ | `now()` | — | 計算時間，排序與查詢區間；保存 2 年也以它計算 |
 | `updated_at` | `timestamptz` | ✓ | `now()` | 修改時由 trigger 自動更新 | 最後修改時間（例如改名） |
 
@@ -108,7 +108,10 @@ SQL 存在專案的 `supabase/migrations/`（Supabase CLI 預設讀取的位置�
 
 ## 8. 實作順序
 
+全部已完成：
+
 1. 建立 `records` 資料表、RLS 與排程刪除（本文件第 7 節）。
 2. 首頁存檔：新增 `app/utils/records.ts` 的 `insertRecord()`，會員計算成功後呼叫（分批時每一批呼叫一次，名稱加上批次）；「計算並存檔」附近加上存在雲端的說明。
 3. 儀表板：執行彙總函式的 migration；`app/utils/records.ts` 新增 `fetchDashboard()`（`supabase.rpc('get_dashboard_summary')`），把 `app/composables/useDashboard.ts` 的假資料換成它的結果（`useAsyncData`，伺服器渲染時就抓好）。沒有紀錄時顯示插畫佔位的空狀態。
-4. 紀錄頁：查詢區間、分頁、改名、匯出 CSV，註明「這不是會計憑證」。
+4. 紀錄頁：查詢區間、分頁、改名、匯出 CSV，註明「這不是會計憑證」。`app/utils/records.ts` 的 `fetchRecordList()`（目前這一頁的摘要欄位和總筆數）、`fetchRecord()`（整筆紀錄）、`updateRecordName()`、`fetchRangeRecords()`（匯出區間用，不含 `rows`）；列表 `useRecords` 和明細 `useRecordDetail` 各自用 `useAsyncData`，頁面先等列表再等明細。
+5. 會員頁的權限：訪客打開儀表板、紀錄、設定頁時導回首頁（`app/middleware/auth.global.ts`）。資料本身仍由 RLS 保護，這只是讓訪客不會看到空的會員頁。
