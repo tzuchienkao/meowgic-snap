@@ -1,5 +1,5 @@
-import { createBrowserClient, createServerClient } from '@supabase/ssr'
-import { parseCookies, setCookie, setResponseHeader } from 'h3'
+import { createBrowserClient, createServerClient } from '@supabase/ssr';
+import { parseCookies, setCookie, setResponseHeader } from 'h3';
 
 /**
  * Supabase client on both sides, with the session kept in cookies (@supabase/ssr):
@@ -9,27 +9,27 @@ import { parseCookies, setCookie, setResponseHeader } from 'h3'
  * - browser: reads / writes the same cookies through document.cookie.
  */
 export default defineNuxtPlugin(() => {
-  const { supabaseUrl, supabaseKey } = useRuntimeConfig().public
+  const { supabaseUrl, supabaseKey } = useRuntimeConfig().public;
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error('[Supabase Plugin] 缺少認證資訊!', { url: !!supabaseUrl, key: !!supabaseKey })
-    return {}
+    console.error('[Supabase Plugin] 缺少認證資訊!', { url: !!supabaseUrl, key: !!supabaseKey });
+    return {};
   }
 
   if (import.meta.server) {
-    const event = useRequestEvent()!
+    const event = useRequestEvent()!;
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
         getAll: () => Object.entries(parseCookies(event)).map(([name, value]) => ({ name, value })),
         setAll: (cookies, headers) => {
-          cookies.forEach(({ name, value, options }) => setCookie(event, name, value, options))
+          cookies.forEach(({ name, value, options }) => setCookie(event, name, value, options));
           // e.g. Cache-Control: private, so a CDN never caches a response carrying someone's session
-          Object.entries(headers ?? {}).forEach(([name, value]) => setResponseHeader(event, name, value))
+          Object.entries(headers ?? {}).forEach(([name, value]) => setResponseHeader(event, name, value));
         },
       },
-    })
-    return { provide: { supabase } }
+    });
+    return { provide: { supabase } };
   }
 
-  return { provide: { supabase: createBrowserClient(supabaseUrl, supabaseKey) } }
-})
+  return { provide: { supabase: createBrowserClient(supabaseUrl, supabaseKey) } };
+});

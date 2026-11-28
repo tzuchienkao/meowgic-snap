@@ -1,5 +1,5 @@
-import tailwindcss from "@tailwindcss/vite";
-import { SITE_TITLE } from "./app/constants/site";
+import tailwindcss from '@tailwindcss/vite';
+import { SITE_TITLE } from './app/constants/site';
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -19,9 +19,12 @@ export default defineNuxtConfig({
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@200..900&display=swap' }
-      ]
-    }
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@200..900&display=swap',
+        },
+      ],
+    },
   },
 
   nitro: {
@@ -37,12 +40,10 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    plugins: [
-      tailwindcss(),
-    ],
+    plugins: [tailwindcss()],
     // Dev only: pre-bundle at startup instead of discovering it on the first page load (which reloads the page)
     optimizeDeps: {
       include: ['@supabase/ssr'],
     },
   },
-})
+});

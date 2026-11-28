@@ -8,10 +8,10 @@
 </template>
 
 <script setup lang="ts">
-import { CALLBACK_ERROR_MESSAGES } from '~/constants/auth'
-import { RouteName } from '~/constants/navigation'
-import { usePreferences } from '~/composables/usePreferences'
-import { getSupabaseErrorKind, SupabaseErrorKind } from '~/utils/supabaseErrors'
+import { CALLBACK_ERROR_MESSAGES } from '~/constants/auth';
+import { RouteName } from '~/constants/navigation';
+import { usePreferences } from '~/composables/usePreferences';
+import { getSupabaseErrorKind, SupabaseErrorKind } from '~/utils/supabaseErrors';
 
 definePageMeta({
   middleware: [
@@ -20,57 +20,57 @@ definePageMeta({
     // a cookie by the browser that asked for the link. If this fails (e.g. the link was opened in
     // another browser), the page renders and the browser client tries once more on its own.
     async (to) => {
-      if (!import.meta.server || typeof to.query.code !== 'string') return
+      if (!import.meta.server || typeof to.query.code !== 'string') return;
       // Inline middleware gets no automatic async context: after the await, Nuxt composables
       // (navigateTo) no longer find the app, so take it first and run them inside its context.
-      const nuxtApp = useNuxtApp()
-      const { error } = await nuxtApp.$supabase.auth.exchangeCodeForSession(to.query.code)
+      const nuxtApp = useNuxtApp();
+      const { error } = await nuxtApp.$supabase.auth.exchangeCodeForSession(to.query.code);
       if (error) {
-        console.error('Exchange code error:', error)
-        return
+        console.error('Exchange code error:', error);
+        return;
       }
-      return nuxtApp.runWithContext(() => navigateTo('/', { redirectCode: 302 }))
+      return nuxtApp.runWithContext(() => navigateTo('/', { redirectCode: 302 }));
     },
   ],
-})
+});
 
-const route = useRoute()
-const { user, initAuth } = useAuth()
-const { loadPreferences } = usePreferences()
+const route = useRoute();
+const { user, initAuth } = useAuth();
+const { loadPreferences } = usePreferences();
 
-const errorMessage = ref('')
+const errorMessage = ref('');
 
 /** Supabase sends a refused link back with ?error_code= (PKCE) or #error_code= (implicit flow) */
 const linkErrorCode = (): string | null => {
-  if (typeof route.query.error_code === 'string') return route.query.error_code
-  if (typeof route.query.error === 'string') return route.query.error
-  const hash = new URLSearchParams(window.location.hash.slice(1))
-  return hash.get('error_code') ?? hash.get('error')
-}
+  if (typeof route.query.error_code === 'string') return route.query.error_code;
+  if (typeof route.query.error === 'string') return route.query.error;
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  return hash.get('error_code') ?? hash.get('error');
+};
 
 const toCallbackMessage = (code: string) =>
   getSupabaseErrorKind({ code }) === SupabaseErrorKind.Expired
     ? CALLBACK_ERROR_MESSAGES.expired
-    : CALLBACK_ERROR_MESSAGES.failed
+    : CALLBACK_ERROR_MESSAGES.failed;
 
 onMounted(async () => {
-  const code = linkErrorCode()
+  const code = linkErrorCode();
   if (code) {
-    errorMessage.value = toCallbackMessage(code)
-    return
+    errorMessage.value = toCallbackMessage(code);
+    return;
   }
-  await initAuth()
+  await initAuth();
   // Still a guest: the code could not be exchanged (e.g. the link was opened in another browser)
   if (!user.value) {
-    errorMessage.value = CALLBACK_ERROR_MESSAGES.failed
-    return
+    errorMessage.value = CALLBACK_ERROR_MESSAGES.failed;
+    return;
   }
   // Just signed in: load this member's 偏好設定 before showing the app
-  await loadPreferences()
-  await navigateTo('/')
-})
+  await loadPreferences();
+  await navigateTo('/');
+});
 
-const onHomeClick = () => navigateTo({ name: RouteName.Index })
+const onHomeClick = () => navigateTo({ name: RouteName.Index });
 </script>
 
 <style scoped>

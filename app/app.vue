@@ -10,11 +10,11 @@
 </template>
 
 <script setup lang="ts">
-import { useAgent } from '~/composables/useAgent.ts'
-import { useTheme } from "~/composables/useTheme.ts";
-import { useAuth } from "~/composables/useAuth.ts";
-import { useToast } from "~/composables/useToast.ts";
-import { usePreferences } from "~/composables/usePreferences";
+import { useAgent } from '~/composables/useAgent.ts';
+import { useTheme } from '~/composables/useTheme.ts';
+import { useAuth } from '~/composables/useAuth.ts';
+import { useToast } from '~/composables/useToast.ts';
+import { usePreferences } from '~/composables/usePreferences';
 
 const { agentMode, setAgentMode, initAgentMode, cleanupAgentMode } = useAgent();
 const { theme, loadSavedTheme } = useTheme();
@@ -43,11 +43,11 @@ onBeforeUnmount(() => {
 // `user` is known during SSR (session cookie), so the first HTML already has the right layout
 const layout = computed(() => {
   if (user.value) {
-    return agentMode.value === 'mobile' ? 'mobile-default' : 'desktop-default'
+    return agentMode.value === 'mobile' ? 'mobile-default' : 'desktop-default';
   } else {
     return 'desktop-landing';
   }
-})
+});
 </script>
 
 <style>

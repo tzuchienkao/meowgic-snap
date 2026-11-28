@@ -1,5 +1,5 @@
 import type { ISignInResult, IUser } from '~/types/auth';
-import { getSupabaseErrorKind, getRetryAfterSeconds } from '~/utils/supabaseErrors'
+import { getSupabaseErrorKind, getRetryAfterSeconds } from '~/utils/supabaseErrors';
 
 interface IAuthUserFields {
   id: string;
