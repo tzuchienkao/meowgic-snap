@@ -1,7 +1,6 @@
+import { DESKTOP_MIN_WIDTH_PX } from '~/constants/breakpoints'
+
 export const useAgent = () => {
-  // Design system: NavPills collapse to the ☰ menu under 900px
-  // (keep in sync with --breakpoint-desktop in assets/css/main.css)
-  const minWidth = '900px'
   // SSR has no window: guess from the user agent so a phone gets the mobile layout in the first
   // HTML; the browser corrects it with the real width (setAgentMode) once mounted
   const agentMode = useState('agentMode', () => {
@@ -11,7 +10,8 @@ export const useAgent = () => {
   })
   
   const setAgentMode = () => {
-    if (window?.innerWidth < parseInt(minWidth)) {
+    // Design system: NavPills collapse to the ☰ menu under the desktop breakpoint
+    if (window?.innerWidth < DESKTOP_MIN_WIDTH_PX) {
       agentMode.value = 'mobile'
     } else {
       agentMode.value = 'desktop'

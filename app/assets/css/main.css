@@ -146,6 +146,6 @@
   /* Motion */
   --ease-ms: var(--ms-ease);
 
-  /* Breakpoint — DS: two columns become one under 900px (same value as useAgent's mobile switch) */
+  /* Breakpoint — DS: two columns become one under 900px (keep DESKTOP_MIN_WIDTH_PX in constants/breakpoints.ts the same) */
   --breakpoint-desktop: 900px;
 }

@@ -1,30 +1,19 @@
-import { pad2 } from '~/utils/format';
+import { addDays, fromDayKey, startOfDay, toDayKey } from '~/utils/calendar';
 import { MAX_RANGE_MONTHS, RECORD_DATES_ERRORS, RECORD_RANGE_OPTIONS, RECORD_RETENTION_YEARS } from '~/constants/record';
 import type { IRecordDates, IRecordPeriod, RecordRange } from '~/types/record';
 
-/** Local date → "YYYY-MM-DD" (the value of an <input type="date">) */
-export const toDateInputValue = (date: Date): string =>
-  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+/** "YYYY-MM-DD" → local midnight; only called with days that passed validation */
+const dayOf = (key: string): Date => fromDayKey(key)!;
 
-/** "YYYY-MM-DD" → local midnight of that day */
-const fromDateInputValue = (value: string): Date => {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(year!, month! - 1, day);
-};
-
+/**
+ * Same time N months later, overflowing into the next month (08-31 + 6 months → 03-03), unlike the
+ * calendar's clamped addMonths: the 查詢區間 limits have always been worked out this way.
+ */
 const addMonths = (date: Date, months: number) => {
   const result = new Date(date);
   result.setMonth(result.getMonth() + months);
   return result;
 };
-
-const addDays = (date: Date, days: number) => {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-};
-
-const today = (now: Date) => new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
 /** 近 N 個月: from N months ago (now) to now */
 export const periodFromRange = (range: RecordRange, now = new Date()): IRecordPeriod => ({
@@ -33,14 +22,14 @@ export const periodFromRange = (range: RecordRange, now = new Date()): IRecordPe
 
 /** 自訂: from the start day's midnight to the midnight after the end day */
 export const periodFromDates = ({ start, end }: IRecordDates): IRecordPeriod => ({
-  from: fromDateInputValue(start).toISOString(),
-  to: addDays(fromDateInputValue(end), 1).toISOString(),
+  from: dayOf(start).toISOString(),
+  to: addDays(dayOf(end), 1).toISOString(),
 });
 
 /** The earliest and latest days a 自訂 查詢區間 can use, as <input type="date"> min / max */
 export const recordDatesLimits = (now = new Date()) => ({
-  min: toDateInputValue(addMonths(today(now), -12 * RECORD_RETENTION_YEARS)),
-  max: toDateInputValue(today(now)),
+  min: toDayKey(addMonths(startOfDay(now), -12 * RECORD_RETENTION_YEARS)),
+  max: toDayKey(startOfDay(now)),
 });
 
 /** Why a 自訂 查詢區間 can't be used ('' when it can) */
@@ -51,7 +40,7 @@ export const validateRecordDates = ({ start, end }: IRecordDates, now = new Date
   if (start > end) return RECORD_DATES_ERRORS.order;
   if (start < min) return RECORD_DATES_ERRORS.tooOld;
   if (end > max) return RECORD_DATES_ERRORS.future;
-  if (end > toDateInputValue(addMonths(fromDateInputValue(start), MAX_RANGE_MONTHS))) return RECORD_DATES_ERRORS.tooLong;
+  if (end > toDayKey(addMonths(dayOf(start), MAX_RANGE_MONTHS))) return RECORD_DATES_ERRORS.tooLong;
   return '';
 };
 
@@ -67,8 +56,8 @@ export const rangeForRecord = (
     .sort((a, b) => a - b)
     .find((value) => new Date(createdAt) >= new Date(periodFromRange(value, now).from));
   if (range) return { range, dates: null };
-  const end = today(new Date(createdAt));
-  const start = toDateInputValue(addMonths(end, -MAX_RANGE_MONTHS));
+  const end = startOfDay(new Date(createdAt));
+  const start = toDayKey(addMonths(end, -MAX_RANGE_MONTHS));
   const { min } = recordDatesLimits(now);
-  return { range: null, dates: { start: start < min ? min : start, end: toDateInputValue(end) } };
+  return { range: null, dates: { start: start < min ? min : start, end: toDayKey(end) } };
 };

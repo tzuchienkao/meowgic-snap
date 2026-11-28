@@ -1,5 +1,5 @@
 <template>
-  <div class="page-settings flex flex-col gap-5">
+  <div class="page-dashboard flex flex-col gap-5">
     <app-page-header title="儀表板" description="喵奴才，這是你到目前為止的兌換紀錄喵" />
     <app-cat-ear-card v-if="!hasRecords || hasError">
       <app-empty-state :message="hasError ? ERROR_MESSAGE : EMPTY_MESSAGE">

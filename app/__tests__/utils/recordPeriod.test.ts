@@ -5,15 +5,15 @@ import {
   periodFromRange,
   rangeForRecord,
   recordDatesLimits,
-  toDateInputValue,
   validateRecordDates,
 } from '../../utils/recordPeriod';
+import { toDayKey } from '../../utils/calendar';
 
 const NOW = new Date('2026-11-27T10:00:00+08:00');
 
 describe('utils/recordPeriod', () => {
-  it('toDateInputValue gives the local day as YYYY-MM-DD', () => {
-    expect(toDateInputValue(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
+  it('toDayKey (the <input type="date"> value) gives the local day as YYYY-MM-DD', () => {
+    expect(toDayKey(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
   });
 
   it('periodFromRange reaches back N months from now, with no end', () => {

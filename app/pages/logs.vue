@@ -1,5 +1,5 @@
 <template>
-  <div class="page-settings flex flex-col gap-5">
+  <div class="page-logs flex flex-col gap-5">
     <app-page-header title="紀錄" description="每一次兌換都幫你記下來了，紀錄保存 2 年">
       <template #actions>
         <app-button
@@ -190,6 +190,7 @@
 </template>
 
 <script setup lang="ts">
+import { DESKTOP_MEDIA_QUERY } from '~/constants/breakpoints';
 import { formatDate, formatNumber } from '~/utils/format';
 import { toDenominationItems } from '~/utils/denominations';
 import { computed, nextTick, ref } from 'vue';
@@ -209,7 +210,8 @@ import { useRecords } from '~/composables/useRecords';
 import { useRecordDetail } from '~/composables/useRecordDetail';
 import type { ILinkedRecord, RecordRange } from '~/types/record';
 import { createCsvBlob, downloadBlob } from '~/utils/download';
-import { periodFromRange, recordDatesLimits, toDateInputValue, validateRecordDates } from '~/utils/recordPeriod';
+import { periodFromRange, recordDatesLimits, validateRecordDates } from '~/utils/recordPeriod';
+import { toDayKey } from '~/utils/calendar';
 import { buildExportFileName, buildRecordCsv, buildRecordsCsv, EXPORT_RECORDS_FILE_PREFIX, ExportExt } from '~/utils/exporters';
 import { updateRecordName } from '~/utils/records';
 
@@ -220,8 +222,6 @@ const DETAIL_ERROR_MESSAGE = '這筆紀錄沒有載入成功喵';
 enum AsyncDataStatus {
   Pending = 'pending',
 }
-/** Same as --breakpoint-desktop: from here the list and the detail sit side by side */
-const DESKTOP_MEDIA_QUERY = '(min-width: 900px)';
 const MESSAGES = {
   csvDone: 'CSV 匯出好了喵',
   csvFailed: 'CSV 沒有匯出成功喵',
@@ -312,6 +312,7 @@ const onListRef = (el: unknown) => {
 const onScrollRef = (el: unknown) => {
   scrollElement = el as HTMLElement | null;
 };
+// From the desktop breakpoint the list and the detail sit side by side
 const isDesktop = () => window.matchMedia(DESKTOP_MEDIA_QUERY).matches;
 
 /** New records in the list: start from its top (inside the list on desktop, the page on mobile) */
@@ -332,7 +333,7 @@ const onCustomRangeClick = () => {
   isCustomOpen.value = true;
   customError.value = '';
   // Start from the 近 N 個月 shown now
-  customStart.value = toDateInputValue(new Date(periodFromRange(range.value).from));
+  customStart.value = toDayKey(new Date(periodFromRange(range.value).from));
   customEnd.value = dateLimits.value.max;
 };
 
