@@ -1,6 +1,7 @@
 <template>
   <mobile-wrapper>
-    <app-header class="z-10">
+    <!-- relative: z-10 needs a position to lift the header (and its ☰ menu) above the page -->
+    <app-header class="relative z-10">
       <template v-slot:menu>
         <div class="flex">
           <div class="relative">

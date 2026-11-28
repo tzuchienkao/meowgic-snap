@@ -490,8 +490,9 @@ const onExportRangeClick = async () => {
 
 /* Sliding pill behind the pressed chip (as NavPills). With anchor positioning the pressed chip itself
    turns transparent and the pill paints it; the chips' labels sit above the pill */
+/* isolate: the label / pill z-index stays inside the chips (the mobile ☰ menu goes over them) */
 .range-card__chips {
-  @apply relative;
+  @apply relative isolate;
 }
 .range-card__chips :deep(.app-filter-chip__label) {
   @apply relative z-2;
@@ -569,7 +570,8 @@ const onExportRangeClick = async () => {
   @apply desktop:max-h-dvh;
 }
 .records-list__scroll {
-  @apply relative desktop:min-h-0 desktop:flex-1 desktop:overflow-y-auto;
+  /* isolate: the rows' / pill's z-index stays inside the list */
+  @apply relative isolate desktop:min-h-0 desktop:flex-1 desktop:overflow-y-auto;
 }
 /* Desktop: the selected (strong) fill slides between rows, like NavPills. The pill sits above the rows'
    own fills and below their text; with anchor positioning the selected row itself turns transparent */
