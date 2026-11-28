@@ -8,6 +8,8 @@ import AppCheckbox from '../../components/app/Checkbox/Checkbox.vue';
 import AppDialog from '../../components/app/Dialog/Dialog.vue';
 import AppIconButton from '../../components/app/IconButton/IconButton.vue';
 import AppIllustrationSlot from '../../components/app/IllustrationSlot/IllustrationSlot.vue';
+import AppPageHeader from '../../components/app/PageHeader/PageHeader.vue';
+import AppEmptyState from '../../components/app/EmptyState/EmptyState.vue';
 import AppInput from '../../components/app/Input/Input.vue';
 import AppPreferencesForm from '../../components/app/PreferencesForm/PreferencesForm.vue';
 import SettingsPage from '../../pages/settings.vue';
@@ -44,6 +46,8 @@ const mountPage = () => {
         AppDialog,
         AppIconButton,
         AppIllustrationSlot,
+        AppEmptyState,
+        AppPageHeader,
         AppInput,
         AppPreferencesForm,
       },

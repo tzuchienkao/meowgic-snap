@@ -10,6 +10,8 @@ import AppDialog from '../../components/app/Dialog/Dialog.vue';
 import AppFilterChip from '../../components/app/FilterChip/FilterChip.vue';
 import AppIconButton from '../../components/app/IconButton/IconButton.vue';
 import AppIllustrationSlot from '../../components/app/IllustrationSlot/IllustrationSlot.vue';
+import AppPageHeader from '../../components/app/PageHeader/PageHeader.vue';
+import AppEmptyState from '../../components/app/EmptyState/EmptyState.vue';
 import AppInput from '../../components/app/Input/Input.vue';
 import AppPagination from '../../components/app/Pagination/Pagination.vue';
 import AppRecordDetailCard from '../../components/app/RecordDetailCard/RecordDetailCard.vue';
@@ -214,6 +216,8 @@ const mountPage = async () => {
         AppFilterChip,
         AppIconButton,
         AppIllustrationSlot,
+        AppEmptyState,
+        AppPageHeader,
         AppInput,
         AppPagination,
         AppRecordDetailCard,
@@ -278,8 +282,8 @@ describe('pages/logs.vue', () => {
   it('keeps the title and subtitle, with 匯出這個區間 CSV beside them', async () => {
     const w = await mountPage();
     expect(w.find('h1').text()).toBe('紀錄');
-    expect(w.find('.page-settings__header p').text()).toBe('每一次兌換都幫你記下來了，紀錄保存 2 年');
-    const exportButton = w.find('.page-logs__header .app-button');
+    expect(w.find('.app-page-header__description').text()).toBe('每一次兌換都幫你記下來了，紀錄保存 2 年');
+    const exportButton = w.find('.app-page-header .app-button');
     expect(exportButton.text()).toContain('匯出這個區間 CSV');
     expect(exportButton.classes()).toEqual(expect.arrayContaining(['app-button--surface', 'app-button--md']));
   });
@@ -735,8 +739,8 @@ describe('pages/logs.vue', () => {
       supabase.state.listFails = true;
       const w = await mountPage();
       expect(w.find('.page-logs__body').exists()).toBe(false);
-      expect(w.find('.logs-empty__text').text()).toBe('資料沒有載入成功喵');
-      expect(w.find('.page-logs__header .app-button').attributes('disabled')).toBeDefined();
+      expect(w.find('.app-empty-state__message').text()).toBe('資料沒有載入成功喵');
+      expect(w.find('.app-page-header .app-button').attributes('disabled')).toBeDefined();
 
       supabase.state.listFails = false;
       await click(button(w, '重試'));
@@ -748,7 +752,7 @@ describe('pages/logs.vue', () => {
       const w = await mountPage();
       supabase.state.listFails = true;
       await click(chip(w, '近半年'));
-      expect(w.find('.logs-empty__text').text()).toBe('資料沒有載入成功喵');
+      expect(w.find('.app-empty-state__message').text()).toBe('資料沒有載入成功喵');
     });
 
     it('the detail: says so with 重試 beside the list, which stays', async () => {
@@ -782,15 +786,15 @@ describe('pages/logs.vue', () => {
     });
   });
 
-  it('with nothing in the range: a placeholder instead of the list, and nothing to export', async () => {
+  it('with nothing in the range: the empty-notebook cat instead of the list, and nothing to export', async () => {
     vi.setSystemTime(new Date('2028-01-01T10:00:00+08:00'));
     const w = await mountPage();
     expect(w.find('.page-logs__body').exists()).toBe(false);
-    const slot = w.find('.app-cat-ear-card .logs-empty');
-    expect(slot.classes()).toContain('app-illustration-slot--placeholder');
-    expect(slot.find('.app-illustration-slot__label').text()).toBe('貓咪插畫：翻開空白的紀錄本');
-    expect(slot.find('.logs-empty__text').text()).toBe('這段期間沒有兌換紀錄喵');
-    expect(w.find('.page-logs__header .app-button').attributes('disabled')).toBeDefined();
+    const slot = w.find('.app-cat-ear-card .app-empty-state');
+    expect(slot.classes()).not.toContain('app-illustration-slot--placeholder');
+    expect(slot.find('img').attributes('alt')).toBe('貓咪插畫：翻開空白的紀錄本');
+    expect(slot.find('.app-empty-state__message').text()).toBe('這段期間沒有兌換紀錄喵');
+    expect(w.find('.app-page-header .app-button').attributes('disabled')).toBeDefined();
     // The range chips stay, so another range can still be picked
     expect(w.findAll('.app-filter-chip')).toHaveLength(4);
   });

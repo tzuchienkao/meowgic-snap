@@ -1,9 +1,6 @@
 <template>
   <div class="page-settings flex flex-col gap-5">
-    <div class="page-settings__header">
-      <h1 class="text-ink text-h1">設定</h1>
-      <p class="text-muted text-helper mt-1">這裡改的設定都會幫你記住，下次登入還在喵</p>
-    </div>
+    <app-page-header title="設定" description="這裡改的設定都會幫你記住，下次登入還在喵" />
     <!-- DS: one column under 900px, two columns from 900px (desktop: breakpoint) -->
     <div class="page-settings__body grid grid-cols-1 items-start gap-6 desktop:grid-cols-2">
       <div class="page-settings__column">

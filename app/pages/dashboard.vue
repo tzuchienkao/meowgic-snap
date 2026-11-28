@@ -1,16 +1,14 @@
 <template>
   <div class="page-settings flex flex-col gap-5">
-    <div class="page-settings__header">
-      <h1 class="text-ink text-h1">儀表板</h1>
-      <p class="text-muted text-helper mt-1">喵奴才，這是你到目前為止的兌換紀錄喵</p>
-    </div>
+    <app-page-header title="儀表板" description="喵奴才，這是你到目前為止的兌換紀錄喵" />
     <app-cat-ear-card v-if="!hasRecords || hasError">
-      <app-illustration-slot class="dashboard-empty" radius="card">
+      <app-empty-state :message="hasError ? ERROR_MESSAGE : EMPTY_MESSAGE">
         <img src="~/assets/images/cats-food-can.svg" alt="貓咪插畫：空空的罐罐" class="h-30" />
-        <p class="dashboard-empty__text">{{ hasError ? ERROR_MESSAGE : EMPTY_MESSAGE }}</p>
-        <app-button v-if="!hasRecords && !hasError" variant="primary" size="md" @click="onGoHomeClick">去首頁算一次</app-button>
-        <app-button v-if="hasError" variant="primary" size="md" @click="onRetryClick">重試</app-button>
-      </app-illustration-slot>
+        <template #actions>
+          <app-button v-if="!hasRecords && !hasError" variant="primary" size="md" @click="onGoHomeClick">去首頁算一次</app-button>
+          <app-button v-if="hasError" variant="primary" size="md" @click="onRetryClick">重試</app-button>
+        </template>
+      </app-empty-state>
     </app-cat-ear-card>
     <!-- DS: one column under 900px, two columns from 900px (desktop: breakpoint) -->
     <div v-else class="page-dashboard__body grid grid-cols-1 items-start gap-5 desktop:grid-cols-2">
@@ -172,13 +170,6 @@ const onRecordClick = ({ id, createdAt }: { id: string; createdAt: string }) => 
 
 <style scoped>
 @reference "~/assets/css/main.css";
-
-.dashboard-empty {
-  @apply p-6 min-h-70;
-}
-.dashboard-empty__text {
-  @apply text-lg;
-}
 
 .page-dashboard__column {
   @apply flex flex-col gap-5;

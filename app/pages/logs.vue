@@ -1,19 +1,17 @@
 <template>
   <div class="page-settings flex flex-col gap-5">
-    <div class="page-logs__header">
-      <div class="page-settings__header">
-        <h1 class="text-ink text-h1">紀錄</h1>
-        <p class="text-muted text-helper mt-1">每一次兌換都幫你記下來了，紀錄保存 2 年</p>
-      </div>
-      <app-button
-        variant="surface"
-        size="md"
-        icon="↓"
-        label="匯出這個區間 CSV"
-        :disabled="!totalCount || hasListError || isExportingRange"
-        @click="onExportRangeClick"
-      />
-    </div>
+    <app-page-header title="紀錄" description="每一次兌換都幫你記下來了，紀錄保存 2 年">
+      <template #actions>
+        <app-button
+          variant="surface"
+          size="md"
+          icon="↓"
+          label="匯出這個區間 CSV"
+          :disabled="!totalCount || hasListError || isExportingRange"
+          @click="onExportRangeClick"
+        />
+      </template>
+    </app-page-header>
 
     <!-- 查詢區間 -->
     <app-card radius="sub" class="range-card">
@@ -79,10 +77,12 @@
 
     <!-- Nothing in the 查詢區間, or the list could not be loaded -->
     <app-cat-ear-card v-if="hasListError || !records.length" class="page-logs__loadable" :aria-busy="isListLoading">
-      <app-illustration-slot class="logs-empty" label="貓咪插畫：翻開空白的紀錄本" radius="card" :stripe="10">
-        <p class="logs-empty__text">{{ hasListError ? LIST_ERROR_MESSAGE : EMPTY_MESSAGE }}</p>
-        <app-button v-if="hasListError" variant="primary" size="md" label="重試" @click="onListRetryClick" />
-      </app-illustration-slot>
+      <app-empty-state :message="hasListError ? LIST_ERROR_MESSAGE : EMPTY_MESSAGE">
+        <img src="~/assets/images/cats-open-book.svg" alt="貓咪插畫：翻開空白的紀錄本" class="h-30">
+        <template #actions>
+          <app-button v-if="hasListError" variant="primary" size="md" label="重試" @click="onListRetryClick" />
+        </template>
+      </app-empty-state>
     </app-cat-ear-card>
 
     <!-- DS: list 380px + detail beside it (desktop: breakpoint, 900px). Desktop: at most one screen tall,
@@ -473,10 +473,6 @@ const onExportRangeClick = async () => {
 <style scoped>
 @reference "~/assets/css/main.css";
 
-.page-logs__header {
-  @apply flex flex-wrap items-end justify-between gap-3;
-}
-
 /* DS padding 16/18, gap 12 → 16 / 12 */
 .range-card {
   @apply gap-3 p-4;
@@ -539,13 +535,6 @@ const onExportRangeClick = async () => {
 }
 .custom-range__error--desktop {
   @apply hidden desktop:block;
-}
-
-.logs-empty {
-  @apply p-6 min-h-70;
-}
-.logs-empty__text {
-  @apply text-lg;
 }
 
 /* While a new range / page / record loads, the old one stays dimmed (and can't be clicked) */

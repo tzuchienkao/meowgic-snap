@@ -7,6 +7,8 @@ import AppCatEarCard from '../../components/app/CatEarCard/CatEarCard.vue';
 import AppChip from '../../components/app/Chip/Chip.vue';
 import AppDenomCell from '../../components/app/DenomCell/DenomCell.vue';
 import AppIllustrationSlot from '../../components/app/IllustrationSlot/IllustrationSlot.vue';
+import AppPageHeader from '../../components/app/PageHeader/PageHeader.vue';
+import AppEmptyState from '../../components/app/EmptyState/EmptyState.vue';
 import AppRecordRow from '../../components/app/RecordRow/RecordRow.vue';
 import AppTotalCard from '../../components/app/TotalCard/TotalCard.vue';
 import DashboardPage from '../../pages/dashboard.vue';
@@ -86,7 +88,7 @@ const useAsyncDataStub = async <T>(_key: string, handler: () => Promise<T>) => {
 const mountPage = async () => {
   wrapper = mount(defineComponent({ render: () => h(Suspense, null, { default: () => h(DashboardPage) }) }), {
     global: {
-      components: { AppButton, AppCard, AppCatEarCard, AppChip, AppDenomCell, AppIllustrationSlot, AppRecordRow, AppTotalCard },
+      components: { AppButton, AppCard, AppCatEarCard, AppChip, AppDenomCell, AppEmptyState, AppIllustrationSlot, AppPageHeader, AppRecordRow, AppTotalCard },
     },
   });
   await flushPromises();
@@ -113,7 +115,7 @@ describe('pages/dashboard.vue', () => {
   it('keeps the title and subtitle', async () => {
     const w = (await mountPage());
     expect(w.find('h1').text()).toBe('儀表板');
-    expect(w.find('.page-settings__header p').text()).toBe('喵奴才，這是你到目前為止的兌換紀錄喵');
+    expect(w.find('.app-page-header__description').text()).toBe('喵奴才，這是你到目前為止的兌換紀錄喵');
   });
 
   it('shows the accumulated total and its start date', async () => {
@@ -188,15 +190,15 @@ describe('pages/dashboard.vue', () => {
       const w = await mountPage();
       expect(w.find('h1').text()).toBe('儀表板');
       expect(w.find('.page-dashboard__body').exists()).toBe(false);
-      const slot = w.find('.app-cat-ear-card .dashboard-empty');
+      const slot = w.find('.app-cat-ear-card .app-empty-state');
       expect(slot.find('img').exists()).toBe(true);
       // A real illustration: no stripes behind it
       expect(slot.classes()).not.toContain('app-illustration-slot--placeholder');
-      expect(slot.find('.dashboard-empty__text').text()).toBe('還沒有兌換紀錄喵');
+      expect(slot.find('.app-empty-state__message').text()).toBe('還沒有兌換紀錄喵');
     });
 
     it('"去首頁算一次" goes to the home page', async () => {
-      const buttons = (await mountPage()).findAll('.dashboard-empty .app-button');
+      const buttons = (await mountPage()).findAll('.app-empty-state .app-button');
       expect(buttons.map((b) => b.text())).toEqual(['去首頁算一次']);
       await buttons[0]!.trigger('click');
       expect(push).toHaveBeenCalledWith({ name: RouteName.Index });
@@ -211,16 +213,16 @@ describe('pages/dashboard.vue', () => {
     it('says so instead of "no records", with only a retry button', async () => {
       const w = await mountPage();
       expect(w.find('.page-dashboard__body').exists()).toBe(false);
-      expect(w.find('.dashboard-empty__text').text()).toBe('資料沒有載入成功喵');
-      expect(w.findAll('.dashboard-empty .app-button').map((b) => b.text())).toEqual(['重試']);
+      expect(w.find('.app-empty-state__message').text()).toBe('資料沒有載入成功喵');
+      expect(w.findAll('.app-empty-state .app-button').map((b) => b.text())).toEqual(['重試']);
     });
 
     it('重試 loads again and shows the dashboard when it works', async () => {
       const w = await mountPage();
-      await w.find('.dashboard-empty .app-button').trigger('click');
+      await w.find('.app-empty-state .app-button').trigger('click');
       await flushPromises();
       expect(rpc).toHaveBeenCalledTimes(2);
-      expect(w.find('.dashboard-empty').exists()).toBe(false);
+      expect(w.find('.app-empty-state').exists()).toBe(false);
       expect(w.find('.app-total-card__amount-value').text()).toBe('494,999');
     });
   });
