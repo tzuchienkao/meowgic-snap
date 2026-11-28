@@ -589,7 +589,7 @@ const onLoginSaveClick = async () => {
   @apply text-center;
 }
 .current-settings ::v-deep(.app-button) {
-  @apply rounded-full text-muted bg-bg pl-3 pr-1.5 py-3 inline-block;
+  @apply rounded-full text-muted bg-bg pl-3 pr-2 py-3 inline-block;
 }
 .current-settings ::v-deep(.app-button span) {
   @apply rounded-full text-ink bg-surface ml-2 p-2;

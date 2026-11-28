@@ -38,39 +38,44 @@ const route = useRoute();
 const currentName = computed(() => route.name);
 </script>
 
-<style scoped>
+<style>
 @reference "~/assets/css/main.css";
+/* Declare Tailwind's layer order first: this stylesheet can load before main.css,
+   and a layer registered early would otherwise end up below `base` (preflight). */
+@layer theme, base, components, utilities;
 
-.app-nav-pills {
-  @apply relative flex gap-1 bg-surface rounded-full p-1;
-}
+@layer components {
+  .app-nav-pills {
+    @apply relative flex gap-1 bg-surface rounded-full p-1;
+  }
 
-/* Size comes from padding + font size (4px grid), no fixed height. */
-.app-nav-pills__item {
-  @apply relative z-2 block px-4 py-2 rounded-full text-ink whitespace-nowrap;
-  transition: background-color 0.3s, color 0.3s;
-}
+  /* Size comes from padding + font size (4px grid), no fixed height. */
+  .app-nav-pills__item {
+    @apply relative z-2 block px-4 py-2 rounded-full text-ink whitespace-nowrap;
+    transition: background-color 0.3s, color 0.3s;
+  }
 
-.app-nav-pills__item:not(.is-active):hover {
-  @apply bg-hover;
-}
+  .app-nav-pills__item:not(.is-active):hover {
+    @apply bg-hover;
+  }
 
-.app-nav-pills__item.is-active {
-  @apply bg-nav-active text-nav-active-text;
-  anchor-name: --nav-pills-active;
-}
+  .app-nav-pills__item.is-active {
+    @apply bg-nav-active text-nav-active-text;
+    anchor-name: --nav-pills-active;
+  }
 
-/* Sliding pill behind the active item (same timing as the original header tabs). */
-.app-nav-pills__indicator {
-  @apply absolute z-1 rounded-full bg-nav-active;
-  position-anchor: --nav-pills-active;
-  top: anchor(top);
-  bottom: anchor(bottom);
-  left: anchor(left);
-  right: anchor(right);
-  transition:
-    left 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.3s ease;
+  /* Sliding pill behind the active item (same timing as the original header tabs). */
+  .app-nav-pills__indicator {
+    @apply absolute z-1 rounded-full bg-nav-active;
+    position-anchor: --nav-pills-active;
+    top: anchor(top);
+    bottom: anchor(bottom);
+    left: anchor(left);
+    right: anchor(right);
+    transition:
+      left 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+      right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.3s ease;
+  }
 }
 </style>

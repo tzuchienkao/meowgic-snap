@@ -190,6 +190,7 @@
 </template>
 
 <script setup lang="ts">
+import { AsyncDataStatus } from '~/constants/asyncData';
 import { DESKTOP_MEDIA_QUERY } from '~/constants/breakpoints';
 import { formatDate, formatNumber } from '~/utils/format';
 import { toDenominationItems } from '~/utils/denominations';
@@ -218,10 +219,6 @@ import { updateRecordName } from '~/utils/records';
 const EMPTY_MESSAGE = '這段期間沒有兌換紀錄喵';
 const LIST_ERROR_MESSAGE = '資料沒有載入成功喵';
 const DETAIL_ERROR_MESSAGE = '這筆紀錄沒有載入成功喵';
-/** useAsyncData's status while it fetches */
-enum AsyncDataStatus {
-  Pending = 'pending',
-}
 const MESSAGES = {
   csvDone: 'CSV 匯出好了喵',
   csvFailed: 'CSV 沒有匯出成功喵',

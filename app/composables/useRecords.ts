@@ -69,7 +69,7 @@ export const useRecords = async (linked: ILinkedRecord | null = null) => {
     setPage,
     selectRecord,
     listRangeRecords,
-    status,               // 'idle' | 'pending' | 'success' | 'error'
+    status,               // AsyncDataStatus (constants/asyncData.ts)
     error,                // 失敗時是錯誤物件，成功時是 undefined
     refresh: refreshList,
   };
