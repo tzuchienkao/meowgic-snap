@@ -13,7 +13,7 @@ import {
   writeStoredPreferences,
   type IPreferences,
 } from '~/utils/preferences';
-import { PREFERENCES_SAVE_FAILED_MESSAGE } from '~/constants/user';
+import { PREFERENCES_LOAD_FAILED_MESSAGE, PREFERENCES_SAVE_FAILED_MESSAGE } from '~/constants/user';
 import { MemberSaveStatus } from '~/types/preferences';
 
 /** Quiet period before a member's change is sent to Supabase; quick toggles become one request. */
@@ -41,13 +41,21 @@ const changedWhileSaving = new Set<string>();
  *
  * Every change applies at once. Guests save to localStorage immediately; members save to Supabase
  * auth.user_metadata via saveMemberPreferences, debounced and one request at a time, with a
- * `saveStatus` for the settings page and a toast + `retrySave` when a save fails.
+ * `saveStatus` for the settings page and a toast + `retrySave` when a save fails. If a member's
+ * preferences fail to load, changes stay on screen but are not saved (that would overwrite the
+ * account with defaults); `retrySave` then loads them again.
  */
 export const usePreferences = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const cache = useState<Record<string, IPreferences>>('preferences:cache', () => ({}));
   const saveStatuses = useState<Record<string, MemberSaveStatus>>('preferences:saveStatus', () => ({}));
+  // Members whose saved preferences failed to load: the defaults on screen are not theirs, so a
+  // change must not be saved over what is in their account until a load succeeds.
+  const loadFailures = useState<Record<string, boolean>>('preferences:loadFailed', () => ({}));
+  const setLoadFailed = (key: string, failed: boolean) => {
+    loadFailures.value = { ...loadFailures.value, [key]: failed };
+  };
 
   const memberId = computed<string | null>(() => user.value?.id ?? null);
   const isMember = computed(() => !!user.value);
@@ -83,12 +91,24 @@ export const usePreferences = () => {
     fillCacheEntry(GUEST_PREFERENCES_KEY, readStoredPreferences(GUEST_PREFERENCES_KEY));
 
     const id = memberId.value;
-    if (!id) return;
+    if (id) await loadMemberEntry(id, fillCacheEntry);
+  };
+
+  /** Resolves whether the member's preferences loaded; a failure keeps the defaults and says so. */
+  const loadMemberEntry = async (
+    id: string,
+    store: (key: string, value: IPreferences) => void,
+  ): Promise<boolean> => {
+    const key = memberPreferencesKey(id);
     try {
-      fillCacheEntry(memberPreferencesKey(id), await loadMemberPreferences({ id }));
+      store(key, await loadMemberPreferences({ id }));
+      setLoadFailed(key, false);
+      return true;
     } catch (err) {
-      // Keep the defaults for this visit
       console.error('Load preferences error:', err);
+      setLoadFailed(key, true);
+      showToast(PREFERENCES_LOAD_FAILED_MESSAGE);
+      return false;
     }
   };
 
@@ -148,13 +168,22 @@ export const usePreferences = () => {
     );
   };
 
-  /** 再試一次 after a failed save: send the current preferences right away. */
-  const retrySave = () => {
+  /**
+   * 再試一次 after a failed save: send the current preferences right away. If the member's saved
+   * preferences never loaded, load them instead: what is in the account wins over changes made on
+   * top of the defaults (saving those would overwrite the account with defaults).
+   */
+  const retrySave = async () => {
     const id = memberId.value;
     if (!id || saveStatus.value !== MemberSaveStatus.Failed) return;
     const key = ownerKey.value;
     setSaveStatus(key, MemberSaveStatus.Saving);
-    sendMemberSave(id, key);
+    if (loadFailures.value[key]) {
+      const loaded = await loadMemberEntry(id, setCacheEntry);
+      setSaveStatus(key, loaded ? MemberSaveStatus.Saved : MemberSaveStatus.Failed);
+      return;
+    }
+    await sendMemberSave(id, key);
   };
 
   /** Apply at once; guests save immediately, members after a short debounce. */
@@ -163,7 +192,10 @@ export const usePreferences = () => {
     const key = ownerKey.value;
     setCacheEntry(key, next);
 
-    if (id) {
+    if (id && loadFailures.value[key]) {
+      // Shown for this visit only; 再試一次 loads the saved preferences first
+      setSaveStatus(key, MemberSaveStatus.Failed);
+    } else if (id) {
       scheduleMemberSave(id, key);
     } else if (import.meta.client) {
       writeStoredPreferences(GUEST_PREFERENCES_KEY, next);

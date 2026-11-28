@@ -166,6 +166,20 @@
             </div>
           </app-total-card>
 
+          <!-- Members: the record didn't reach the cloud — keep the result and offer to save it again -->
+          <app-alert v-if="unsavedBatch !== null" class="result-area__save-error" :title="RECORD_MESSAGES.saveFailed">
+            <div class="save-error">
+              <span>{{ RECORD_MESSAGES.saveFailedHint }}</span>
+              <app-button
+                variant="primary"
+                size="sm"
+                label="再存一次"
+                :disabled="isRetryingSave"
+                @click="onRetrySaveClick"
+              />
+            </div>
+          </app-alert>
+
           <!-- A needed small denomination is turned off: say how much is left and how to fix it -->
           <app-alert v-if="remainderNotice" class="result-area__remainder">
             {{ remainderNotice }}
@@ -222,6 +236,7 @@ import { usePreferences } from '~/composables/usePreferences';
 import type { IResultTotal } from '~/types/denomination';
 import { useResultBreakdown } from '~/composables/useResultBreakdown';
 import { useResultExports } from '~/composables/useResultExports';
+import { ModalName, useModal } from '~/composables/useModal';
 
 import { formatDenominationLabel } from '~/utils/preferences';
 import { MAX_ENTRIES, parseMoneySnap, splitEntryLines, type ParsedEntry } from '~/utils/moneyParser';
@@ -245,6 +260,7 @@ const IMPORT_MESSAGES: Record<CsvFileError, string> = {
 
 const RECORD_MESSAGES = {
   saveFailed: '紀錄沒有存成功喵',
+  saveFailedHint: '結果還在畫面上，可以再存一次',
   saveNoteWithNames: '計算結果（含姓名與金額）會存在雲端 2 年，只有你看得到',
   saveNoteAmountOnly: '計算結果會存在雲端 2 年，只有你看得到'
 } as const;
@@ -290,6 +306,9 @@ const resultState = ref({
 });
 
 const saveRecordBatch = ref(BATCH_DEFAULT);
+// The batch whose record failed to save (再存一次 sends it again); null when nothing is waiting
+const unsavedBatch = ref<number | null>(null);
+const isRetryingSave = ref(false);
 
 // Computed properties
 // Header row + non-blank entry lines; the count may exceed MAX_ENTRIES (→ "too many" card on calculate)
@@ -389,6 +408,7 @@ const resetBatchState = () => {
 // Parse and show the result for `input`; returns whether it was calculated
 const runCalculation = (input: string): boolean => {
   isProcessing.value = true;
+  unsavedBatch.value = null;
   validationErrors.value = [];
 
   try {
@@ -446,15 +466,24 @@ const saveRecord = async (batch: number) => {
       denominationCounts: denominationTotals.value,
       rows: resultState.value.rows,
     });
+    unsavedBatch.value = null;
   } catch (error) {
-    showToast(RECORD_MESSAGES.saveFailed);
+    unsavedBatch.value = batch;
     console.error('Failed to save record:', error);
   }
+};
+
+const onRetrySaveClick = async () => {
+  if (unsavedBatch.value === null) return;
+  isRetryingSave.value = true;
+  await saveRecord(unsavedBatch.value);
+  isRetryingSave.value = false;
 };
 
 // Too many entries: no parsing, clear the old result and show the "too many" card
 const showOver = () => {
   validationErrors.value = [];
+  unsavedBatch.value = null;
   resultState.value = emptyResultState();
   isOver.value = true;
 };
@@ -568,6 +597,7 @@ const onCsvFileChange = async (event: Event) => {
 
 const onClearClick = () => {
   moneySnapInput.value = '';
+  unsavedBatch.value = null;
   validationErrors.value = [];
   resetBatchState();
   resultState.value = emptyResultState();
@@ -577,8 +607,10 @@ const onCurrentSettingsClick = async () => {
   await navigateTo({ name: RouteName.Settings });
 };
 
-const onLoginSaveClick = async () => {
-  await navigateTo('/');
+// 登入存檔 (guests): open the 登入 dialog the landing layout renders
+const { openModal: openLoginDialog } = useModal(ModalName.Login);
+const onLoginSaveClick = () => {
+  openLoginDialog();
 };
 </script>
 
@@ -612,6 +644,9 @@ const onLoginSaveClick = async () => {
 }
 .copy-box__text {
   @apply resize-none;
+}
+.save-error {
+  @apply flex flex-wrap items-center justify-between gap-3;
 }
 .result-area__actions {
   @apply grid grid-cols-3 gap-2;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ref, type Ref } from 'vue';
-import { PREFERENCES_SAVE_FAILED_MESSAGE } from '../../constants/user';
+import { PREFERENCES_LOAD_FAILED_MESSAGE, PREFERENCES_SAVE_FAILED_MESSAGE } from '../../constants/user';
 import { MEMBER_SAVE_DEBOUNCE_MS } from '../../composables/usePreferences';
 import { createFakeSupabase, type FakeSupabase } from '../helpers/fakeSupabase';
 import { MemberSaveStatus } from '../../types/preferences';
@@ -197,6 +197,50 @@ describe('usePreferences', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(api.saveStatus.value).toBe(MemberSaveStatus.Saved);
       expect(savedInAccount('u1')).toMatchObject({ denominations: expect.arrayContaining([20]) });
+    });
+  });
+
+  describe('when the member preferences fail to load', () => {
+    const failLoad = () => {
+      supabase.auth.getUser.mockResolvedValueOnce({ data: { user: null }, error: new Error('offline') } as never);
+    };
+
+    it('shows a toast and never saves the defaults over the account', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      supabase.metadata.u1 = { preferences: { includesNames: false, denominations: [500, 1] } };
+      userRef.value = { id: 'u1' };
+      const { preferences, loadPreferences, toggleDenomination, saveStatus } = (await loadUsePreferences())();
+      vi.useFakeTimers();
+      failLoad();
+      await loadPreferences();
+      expect(showToast).toHaveBeenCalledWith(PREFERENCES_LOAD_FAILED_MESSAGE);
+      expect(preferences.value.denominations).toEqual(DEFAULTS);
+
+      toggleDenomination(20);
+      await vi.advanceTimersByTimeAsync(MEMBER_SAVE_DEBOUNCE_MS);
+      expect(preferences.value.denominations).toContain(20);
+      expect(saveStatus.value).toBe(MemberSaveStatus.Failed);
+      expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+      expect(savedInAccount('u1')).toEqual({ includesNames: false, denominations: [500, 1] });
+    });
+
+    it('retrySave loads the saved preferences, which then save normally', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      supabase.metadata.u1 = { preferences: { includesNames: false, denominations: [500, 1] } };
+      userRef.value = { id: 'u1' };
+      const api = (await loadUsePreferences())();
+      vi.useFakeTimers();
+      failLoad();
+      await api.loadPreferences();
+      api.toggleDenomination(20);
+
+      await api.retrySave();
+      expect(api.saveStatus.value).toBe(MemberSaveStatus.Saved);
+      expect(api.preferences.value.denominations).toEqual([500, 1]);
+
+      api.toggleDenomination(20);
+      await vi.advanceTimersByTimeAsync(MEMBER_SAVE_DEBOUNCE_MS);
+      expect(savedInAccount('u1')).toEqual({ includesNames: false, denominations: [500, 20, 1] });
     });
   });
 

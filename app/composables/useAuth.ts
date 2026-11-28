@@ -26,6 +26,11 @@ export const useAuth = () => {
     user.value = value;
   };
 
+  /** Follow a session reported by Supabase (plugins/03.authListener.client.ts) */
+  const setSessionUser = (sessionUser: IAuthUserFields | null) => {
+    setUser(sessionUser ? toUser(sessionUser) : null);
+  };
+
   const logout = async () => {
     try {
       isLoading.value = true;
@@ -152,6 +157,7 @@ export const useAuth = () => {
     isLoading,
     error,
     setUser,
+    setSessionUser,
     logout,
     signInWithMagicLink,
     verifySession,

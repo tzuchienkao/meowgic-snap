@@ -1,7 +1,7 @@
 import { NAVIGATION_ITEMS } from '~/constants/navigation';
 import { useTheme } from '~/composables/useTheme';
 import { Themes } from '~/types/theme';
-import { useModal } from '~/composables/useModal';
+import { ModalName, useModal } from '~/composables/useModal';
 
 export const useLayoutMenuState = () => {
   const router = useRouter();
@@ -36,7 +36,7 @@ export const useLayoutMenuState = () => {
     isShowAccountPanel.value = !isShowAccountPanel.value;
   };
 
-  const { isShowModal, openModal, closeModal } = useModal();
+  const { isShowModal, openModal, closeModal } = useModal(ModalName.Login);
 
   return {
     navItems,

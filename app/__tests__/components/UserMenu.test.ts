@@ -5,11 +5,12 @@ import UserMenu from '../../components/app/UserMenu/UserMenu.vue';
 import Button from '../../components/app/Button/Button.vue';
 import { useUserAccount } from '../../composables/useUserAccount';
 import { RouteName } from '../../constants/navigation';
-import { DEFAULT_DISPLAY_NAME } from '../../constants/user';
+import { DEFAULT_DISPLAY_NAME, LOGOUT_FAILED_MESSAGE } from '../../constants/user';
 
 let userRef: Ref<Record<string, string> | null>;
 let logout: ReturnType<typeof vi.fn>;
 let push: ReturnType<typeof vi.fn>;
+let showToast: ReturnType<typeof vi.fn>;
 let wrapper: VueWrapper | undefined;
 
 const mountMenu = () => {
@@ -22,6 +23,8 @@ beforeEach(() => {
   userRef = ref({ id: 'u1', email: 'meow@mail.com', display_name: '喵奴才' });
   logout = vi.fn();
   push = vi.fn();
+  showToast = vi.fn();
+  vi.stubGlobal('useToast', () => ({ showToast }));
   vi.stubGlobal('useAuth', () => ({ user: userRef, logout }));
   vi.stubGlobal('useRouter', () => ({ push }));
 });
@@ -61,11 +64,12 @@ describe('useUserAccount', () => {
     expect(push).toHaveBeenCalledWith({ name: RouteName.Index });
   });
 
-  it('stays put when logging out failed', async () => {
+  it('stays put and says so when logging out failed', async () => {
     const { onLogout } = useUserAccount();
     await onLogout();
     expect(logout).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(LOGOUT_FAILED_MESSAGE);
   });
 });
 

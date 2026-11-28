@@ -112,7 +112,7 @@ const SAVE_STATUS_TEXT: Record<MemberSaveStatus, string> = {
   [MemberSaveStatus.Failed]: '沒存成功',
 };
 
-const userEmail = ref(user.value?.email || '');
+const userEmail = computed(() => user.value?.email || '');
 const savedName = computed(() => user.value?.display_name || '');
 
 const userName = reactive({

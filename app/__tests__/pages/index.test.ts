@@ -648,12 +648,11 @@ describe('pages/index.vue', () => {
       expect(wrapper.find('.current-settings').exists()).toBe(false);
     });
 
-    it('"登入存檔" calls navigateTo("/")', async () => {
+    it('"登入存檔" opens the shared 登入 dialog', async () => {
       const wrapper = mountPage();
       await findButton(wrapper, '登入存檔')!.trigger('click');
-      await flushPromises();
-      expect(navigateToMock).toHaveBeenCalledTimes(1);
-      expect(navigateToMock).toHaveBeenCalledWith('/');
+      expect((stateStore['modal:login'] as Ref<boolean>).value).toBe(true);
+      expect(navigateToMock).not.toHaveBeenCalled();
     });
   });
 
@@ -1594,7 +1593,7 @@ describe('pages/index.vue', () => {
       ]);
     });
 
-    it('a failed save shows a toast and keeps the result on screen', async () => {
+    it('a failed save keeps the result and offers 再存一次, which saves the same batch', async () => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
       supabase.from.mockReturnValueOnce({
         insert: () => ({ select: () => ({ single: async () => ({ data: null, error: new Error('offline') }) }) }),
@@ -1602,8 +1601,26 @@ describe('pages/index.vue', () => {
       const wrapper = mountPage();
       await typeAndCalculate(wrapper, INPUT, '計算並存檔');
 
-      expect(showToastMock).toHaveBeenCalledWith('紀錄沒有存成功喵');
+      const saveError = wrapper.find('.result-area__save-error');
+      expect(saveError.find('.app-alert__title').text()).toBe('紀錄沒有存成功喵');
       expect(summaryCard(wrapper).find('.app-total-card__amount-value').text()).toBe('24,387');
+      expect(savedRecords()).toHaveLength(0);
+
+      await click(wrapper, '再存一次');
+      expect(savedRecords().map((record) => record.name)).toEqual(['2026/11/26 兌換']);
+      expect(wrapper.find('.result-area__save-error').exists()).toBe(false);
+    });
+
+    it('清除資料 drops the 再存一次 offer', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      supabase.from.mockReturnValueOnce({
+        insert: () => ({ select: () => ({ single: async () => ({ data: null, error: new Error('offline') }) }) }),
+      } as unknown as ReturnType<FakeSupabase['from']>);
+      const wrapper = mountPage();
+      await typeAndCalculate(wrapper, INPUT, '計算並存檔');
+      await click(wrapper, '清除資料，算下一筆');
+      await typeAndCalculate(wrapper, INPUT, '計算並存檔');
+      expect(wrapper.find('.result-area__save-error').exists()).toBe(false);
     });
 
     it('a failed calculation saves nothing', async () => {
