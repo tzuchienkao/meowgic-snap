@@ -28,7 +28,6 @@ const useStateStub = <T>(key: string, init: () => T) => {
   return store[key] as Ref<T>;
 };
 let userRef: Ref<ITestUser | null>;
-let errorRef: Ref<string | null>;
 let updateUserName: ReturnType<typeof vi.fn>;
 let showToast: ReturnType<typeof vi.fn>;
 let supabase: FakeSupabase;
@@ -64,13 +63,13 @@ beforeEach(() => {
   store = {};
   localStorage.clear();
   userRef = ref({ id: 'u1', email: 'cat@example.com', display_name: '小橘' });
-  errorRef = ref(null);
   updateUserName = vi.fn(async (name: string) => {
     userRef.value!.display_name = name;
+    return true;
   });
   showToast = vi.fn();
   vi.stubGlobal('useState', useStateStub);
-  vi.stubGlobal('useAuth', () => ({ user: userRef, updateUserName, error: errorRef }));
+  vi.stubGlobal('useAuth', () => ({ user: userRef, updateUserName }));
   vi.stubGlobal('useToast', () => ({ showToast }));
   supabase = createFakeSupabase(() => userRef.value?.id ?? null);
   vi.stubGlobal('useNuxtApp', () => ({ $supabase: supabase }));
@@ -145,9 +144,7 @@ describe('pages/settings.vue', () => {
     });
 
     it('shows the failure toast when saving fails', async () => {
-      updateUserName.mockImplementation(async () => {
-        errorRef.value = '更新名稱失敗';
-      });
+      updateUserName.mockImplementation(async () => false);
       const w = mountPage();
       await nameInput(w).find('input').setValue('小黑');
       await saveButton(w).trigger('click');

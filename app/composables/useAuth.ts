@@ -107,7 +107,8 @@ export const useAuth = () => {
     }
   };
 
-  const updateUserName = async (name: string) => {
+  /** Saves the display name; resolves whether it was saved (the reason goes to `error`) */
+  const updateUserName = async (name: string): Promise<boolean> => {
     try {
       isLoading.value = true;
       error.value = null;
@@ -127,9 +128,11 @@ export const useAuth = () => {
       if (user.value) {
         user.value.display_name = name;
       }
+      return true;
     } catch (err) {
       error.value = err instanceof Error ? err.message : '更新名稱失敗';
       console.error('Update user name error:', err);
+      return false;
     } finally {
       isLoading.value = false;
     }

@@ -102,7 +102,7 @@ const MESSAGES = {
   nameFailed: '名稱沒有存成功喵，再試一次看看',
 } as const;
 
-const { user, updateUserName, error: authError } = useAuth();
+const { user, updateUserName } = useAuth();
 const { showToast } = useToast();
 const { saveStatus, retrySave } = usePreferences();
 
@@ -137,9 +137,7 @@ const onSaveNameClick = async () => {
   if (!canSaveName.value) return;
   isSavingName.value = true;
   try {
-    await updateUserName(userName.value);
-    // updateUserName reports failures through useAuth().error instead of throwing
-    const isSaved = !authError?.value && savedName.value === userName.value;
+    const isSaved = await updateUserName(userName.value);
     showToast(isSaved ? MESSAGES.nameSaved : MESSAGES.nameFailed);
   } catch {
     showToast(MESSAGES.nameFailed);
