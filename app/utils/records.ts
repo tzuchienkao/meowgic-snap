@@ -8,6 +8,21 @@ interface IRecordRow {
   denomination_counts: Record<number, number>; rows: { name: string; total: number }[];
 }
 
+/** A Supabase response → its data; its error is thrown for useAsyncData / the caller to handle */
+const unwrap = <T>({ data, error }: { data: T; error: unknown }): NonNullable<T> => {
+  if (error) throw error;
+  return data as NonNullable<T>;
+};
+
+/** Records created inside the 查詢區間: from `period.from`, before `period.to` when there is one */
+const inPeriod = <Q extends { gte(column: string, value: string): Q; lt(column: string, value: string): Q }>(
+  query: Q,
+  period: IRecordPeriod,
+): Q => {
+  const from = query.gte('created_at', period.from);
+  return period.to ? from.lt('created_at', period.to) : from;
+};
+
 export function buildRecordName(date: Date, batch: number): string {
   const formattedDate = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
   let name = `${formattedDate} 兌換`;
@@ -21,7 +36,7 @@ export function buildRecordName(date: Date, batch: number): string {
 
 export async function insertRecord(record: INewRecord): Promise<string> {
   const supabase = useNuxtApp().$supabase;
-  const { error, data } = await supabase.from('records').insert({
+  const data = unwrap(await supabase.from('records').insert({
     name: record.name,
     input_format: record.inputFormat,
     entry_count: record.entryCount,
@@ -29,11 +44,7 @@ export async function insertRecord(record: INewRecord): Promise<string> {
     denominations: record.denominations,
     denomination_counts: record.denominationCounts,
     rows: record.rows
-  }).select('id').single()
-  
-  if (error) {
-    throw error;
-  }
+  }).select('id').single());
   return data.id;
 }
 
@@ -60,13 +71,7 @@ const toRecordDetail = (row: IRecordRow): IRecordDetail => ({
 
 export async function fetchDashboard(): Promise<IDashboardData> {
   const supabase = useNuxtApp().$supabase;
-  const { error, data } = await supabase.rpc('get_dashboard_summary');
-
-  if (error) {
-    throw error;
-  }
-  
-  return data as IDashboardData;
+  return unwrap(await supabase.rpc('get_dashboard_summary')) as IDashboardData;
 }
 
 export async function fetchRecordList(period: IRecordPeriod, page: number): Promise<{ records: IRecordSummary[]; totalCount: number }> {
@@ -74,64 +79,40 @@ export async function fetchRecordList(period: IRecordPeriod, page: number): Prom
   const to = Math.min(page * RECORDS_PAGE_SIZE, RECORDS_MAX_RESULTS) - 1;
   const supabase = useNuxtApp().$supabase;
 
-  let query = supabase.from('records')
-    .select('id, name, created_at, entry_count, total_amount', { count: 'exact' })
-    .gte('created_at', period.from);
-  if (period.to) query = query.lt('created_at', period.to);
-
-  const { error, count, data } = await query
+  const query = supabase.from('records').select('id, name, created_at, entry_count, total_amount', { count: 'exact' });
+  const result = await inPeriod(query, period)
     .order('created_at', { ascending: false })
     .range(from, to);
 
-  if (error) {
-    throw error;
-  }
-
   return {
-    records: (data as IRecordRow[]).map(toRecordSummary),
-    totalCount: Math.min(count ?? 0, RECORDS_MAX_RESULTS)
+    records: (unwrap(result) as IRecordRow[]).map(toRecordSummary),
+    totalCount: Math.min(result.count ?? 0, RECORDS_MAX_RESULTS)
   };
 }
 
 export async function fetchRecord(id: string): Promise<IRecordDetail> {
   const supabase = useNuxtApp().$supabase;
-  const { error, data } = await supabase.from('records')
+  const data = unwrap(await supabase.from('records')
     .select('*')
-    .eq('id', id).single();
-
-  if (error) {
-    throw error;
-  }
-
+    .eq('id', id).single());
   return toRecordDetail(data as IRecordRow);
 }
 
 export async function updateRecordName(recordId: string, name: string) {
   const supabase = useNuxtApp().$supabase;
-  const { error } = await supabase.from('records')
+  // .select().single() errors when no row was updated (not the owner, or gone), instead of silently passing
+  unwrap(await supabase.from('records')
     .update({ name })
     .eq('id', recordId)
-    .select('id').single();
-
-  if (error) {
-    throw error;
-  }
+    .select('id').single());
 }
 
 export async function fetchRangeRecords(period: IRecordPeriod): Promise<IRecordCounts[]> {
   const supabase = useNuxtApp().$supabase;
-  let query = supabase.from('records')
-    .select('id, name, created_at, entry_count, total_amount, denominations, denomination_counts')
-    .gte('created_at', period.from);
-  if (period.to) query = query.lt('created_at', period.to);
-
-  const { error, data } = await query
+  const query = supabase.from('records')
+    .select('id, name, created_at, entry_count, total_amount, denominations, denomination_counts');
+  const data = unwrap(await inPeriod(query, period)
     .order('created_at', { ascending: false })
-    .limit(RECORDS_MAX_RESULTS);
-
-  if (error) {
-    throw error;
-  }
-
+    .limit(RECORDS_MAX_RESULTS));
   return (data as IRecordRow[]).map(toRecordCounts);
 }
