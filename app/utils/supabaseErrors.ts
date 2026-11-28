@@ -10,6 +10,8 @@ export enum SupabaseErrorKind {
   Network = 'network',
   /** The server rejected the input (e.g. an email it won't send to) */
   InvalidInput = 'invalid_input',
+  /** The captcha token was missing, used or refused: verify again */
+  Captcha = 'captcha',
   /** The sign-in link or the session is no longer valid: sign in again */
   Expired = 'expired',
   Unknown = 'unknown',
@@ -20,6 +22,7 @@ export const SUPABASE_ERROR_MESSAGES: Record<SupabaseErrorKind, string> = {
   [SupabaseErrorKind.RateLimit]: '太頻繁了喵，請等一下再試',
   [SupabaseErrorKind.Network]: '連不上網路喵，檢查一下再試',
   [SupabaseErrorKind.InvalidInput]: '資料格式不對喵，檢查一下再試',
+  [SupabaseErrorKind.Captcha]: '人機驗證沒有通過喵，再驗證一次',
   [SupabaseErrorKind.Expired]: '登入過期了喵，請重新登入',
   [SupabaseErrorKind.Unknown]: '出了點問題喵，再試一次看看',
 };
@@ -29,6 +32,7 @@ const HTTP_UNAUTHORIZED = 401;
 
 const RATE_LIMIT_CODES = ['over_email_send_rate_limit', 'over_request_rate_limit', 'over_sms_send_rate_limit'];
 const INVALID_INPUT_CODES = ['email_address_invalid', 'validation_failed'];
+const CAPTCHA_CODES = ['captcha_failed'];
 const EXPIRED_CODES = [
   'otp_expired',
   'flow_state_not_found',
@@ -60,6 +64,7 @@ export const getSupabaseErrorKind = (error: unknown): SupabaseErrorKind => {
   const codeText = typeof code === 'string' ? code : '';
   if (status === HTTP_TOO_MANY_REQUESTS || RATE_LIMIT_CODES.includes(codeText)) return SupabaseErrorKind.RateLimit;
   if (INVALID_INPUT_CODES.includes(codeText)) return SupabaseErrorKind.InvalidInput;
+  if (CAPTCHA_CODES.includes(codeText)) return SupabaseErrorKind.Captcha;
   if (EXPIRED_CODES.includes(codeText) || status === HTTP_UNAUTHORIZED) return SupabaseErrorKind.Expired;
   // fetch rejects with a TypeError whose message depends on the browser
   const isNetworkMessage = typeof message === 'string' && NETWORK_MESSAGE_PATTERN.test(message);

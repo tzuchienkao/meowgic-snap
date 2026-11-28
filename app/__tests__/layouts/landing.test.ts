@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
 import { defineComponent, h, reactive, ref, type Ref } from 'vue';
+import { CAPTCHA_LOAD_FAILED_MESSAGE } from '../../constants/auth';
 import Landing from '../../layouts/desktop/landing.vue';
 import AppButton from '../../components/app/Button/Button.vue';
 import AppInput from '../../components/app/Input/Input.vue';
@@ -17,17 +18,28 @@ import type { ISignInResult } from '../../types/auth';
 const DesktopWrapper = defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) });
 const AppHeader = defineComponent({ setup: (_, { slots }) => () => h('header', [slots.header?.(), slots.menu?.()]) });
 const AppPreferencesDrawer = defineComponent({ setup: () => () => h('div', { class: 'drawer-stub' }) });
+// Turnstile stand-in: tests drive it through its events; reset() is counted
+const turnstileReset = vi.fn();
+const AppTurnstile = defineComponent({
+  props: { siteKey: { type: String, required: true } },
+  emits: ['verify', 'expire', 'error'],
+  setup: (_, { expose }) => {
+    expose({ reset: turnstileReset });
+    return () => h('div', { class: 'turnstile-stub' });
+  },
+});
+let turnstileSiteKey = '';
 
 let isShowModal: Ref<boolean>;
 let closeModal: ReturnType<typeof vi.fn>;
-let signInWithMagicLink: ReturnType<typeof vi.fn<(email: string) => Promise<ISignInResult>>>;
+let signInWithMagicLink: ReturnType<typeof vi.fn<(email: string, captchaToken?: string) => Promise<ISignInResult>>>;
 let wrapper: VueWrapper | undefined;
 
 const mountLanding = () => {
   wrapper = mount(Landing, {
     attachTo: document.body,
     global: {
-      components: { AppAlert, AppButton, AppInput, AppDialog, AppIconButton, AppCatEarCard, DesktopWrapper, AppHeader, AppPreferencesDrawer }
+      components: { AppAlert, AppButton, AppInput, AppDialog, AppIconButton, AppCatEarCard, AppTurnstile, DesktopWrapper, AppHeader, AppPreferencesDrawer }
     }
   });
   return wrapper;
@@ -54,6 +66,9 @@ beforeEach(() => {
   vi.stubGlobal('reactive', reactive);
   vi.stubGlobal('useLayoutMenuState', () => ({ isShowModal, openModal: vi.fn(), closeModal }));
   vi.stubGlobal('useAuth', () => ({ signInWithMagicLink }));
+  turnstileSiteKey = '';
+  turnstileReset.mockClear();
+  vi.stubGlobal('useRuntimeConfig', () => ({ public: { turnstileSiteKey } }));
 });
 
 afterEach(() => {
@@ -115,7 +130,7 @@ describe('login dialog — email validation', () => {
     await emailInput(w).setValue('meow@mail.com');
     await w.find('.login-dialog__form').trigger('submit');
     await flushPromises();
-    expect(signInWithMagicLink).toHaveBeenCalledWith('meow@mail.com');
+    expect(signInWithMagicLink).toHaveBeenCalledWith('meow@mail.com', undefined);
   });
 
   it('closing the dialog clears the error', async () => {
@@ -136,7 +151,7 @@ describe('login dialog — sending the magic link', () => {
     vi.useFakeTimers();
     const w = mountLanding();
     await sendTo(w, '  meow@mail.com ');
-    expect(signInWithMagicLink).toHaveBeenCalledWith('meow@mail.com');
+    expect(signInWithMagicLink).toHaveBeenCalledWith('meow@mail.com', undefined);
     expect(closeModal).not.toHaveBeenCalled();
     expect(w.find('.login-dialog__email').text()).toBe('meow@mail.com');
     expect(emailInput(w).exists()).toBe(false);
@@ -150,7 +165,7 @@ describe('login dialog — sending the magic link', () => {
     await resend().trigger('click');
     await flushPromises();
     expect(signInWithMagicLink).toHaveBeenCalledTimes(2);
-    expect(signInWithMagicLink).toHaveBeenLastCalledWith('meow@mail.com');
+    expect(signInWithMagicLink).toHaveBeenLastCalledWith('meow@mail.com', undefined);
   });
 
   it('換一個信箱 goes back to the form with the address kept', async () => {
@@ -206,6 +221,68 @@ describe('login dialog — sending the magic link', () => {
     await w.find('.app-dialog__close button').trigger('click');
     isShowModal.value = true;
     await flushPromises();
+    expect(alert(w).exists()).toBe(false);
+  });
+});
+
+describe('login dialog — 人機驗證 (Turnstile)', () => {
+  const turnstile = (w: VueWrapper) => w.findComponent(AppTurnstile);
+  const verify = async (w: VueWrapper, token = 'token-1') => {
+    turnstile(w).vm.$emit('verify', token);
+    await flushPromises();
+  };
+  beforeEach(() => {
+    turnstileSiteKey = 'site-key';
+  });
+
+  it('without a site key there is no widget and the link is sent without a token', async () => {
+    turnstileSiteKey = '';
+    const w = mountLanding();
+    expect(w.find('.turnstile-stub').exists()).toBe(false);
+    await sendTo(w);
+    expect(signInWithMagicLink).toHaveBeenCalledWith('meow@mail.com', undefined);
+  });
+
+  it('can only send once verified, and sends the token', async () => {
+    const w = mountLanding();
+    expect(turnstile(w).props('siteKey')).toBe('site-key');
+    expect(sendButton(w).text()).toBe('完成人機驗證後就能寄');
+    expect(sendButton(w).attributes('disabled')).toBeDefined();
+
+    await verify(w);
+    await sendTo(w);
+    expect(signInWithMagicLink).toHaveBeenCalledWith('meow@mail.com', 'token-1');
+  });
+
+  it('a token is used once: after a failed send it asks for a new one', async () => {
+    failWith(SupabaseErrorKind.Captcha);
+    const w = mountLanding();
+    await verify(w);
+    await sendTo(w);
+    expect(alert(w).text()).toBe(LOGIN_ERROR_MESSAGES[SupabaseErrorKind.Captcha]);
+    expect(turnstileReset).toHaveBeenCalledTimes(1);
+    expect(sendButton(w).attributes('disabled')).toBeDefined();
+
+    await verify(w, 'token-2');
+    await sendButton(w).trigger('click');
+    await flushPromises();
+    expect(signInWithMagicLink).toHaveBeenLastCalledWith('meow@mail.com', 'token-2');
+  });
+
+  it('an expired token can no longer be sent', async () => {
+    const w = mountLanding();
+    await verify(w);
+    turnstile(w).vm.$emit('expire');
+    await flushPromises();
+    expect(sendButton(w).attributes('disabled')).toBeDefined();
+  });
+
+  it('a widget error says so, and clears once it verifies', async () => {
+    const w = mountLanding();
+    turnstile(w).vm.$emit('error');
+    await flushPromises();
+    expect(alert(w).text()).toBe(CAPTCHA_LOAD_FAILED_MESSAGE);
+    await verify(w);
     expect(alert(w).exists()).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ describe('utils/supabaseErrors', () => {
     [new TypeError('Failed to fetch'), SupabaseErrorKind.Network],
     [{ message: 'TypeError: NetworkError when attempting to fetch resource.' }, SupabaseErrorKind.Network],
     [{ status: 400, code: 'email_address_invalid' }, SupabaseErrorKind.InvalidInput],
+    [{ status: 400, code: 'captcha_failed' }, SupabaseErrorKind.Captcha],
     [{ code: 'otp_expired' }, SupabaseErrorKind.Expired],
     [{ code: 'bad_code_verifier' }, SupabaseErrorKind.Expired],
     [{ code: 'PGRST301' }, SupabaseErrorKind.Expired],

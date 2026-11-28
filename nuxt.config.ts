@@ -6,16 +6,18 @@ const isProduction = process.env.NODE_ENV === 'production';
 /**
  * Content-Security-Policy (production only: the dev server needs Vite's inline scripts and HMR
  * websocket). Nuxt and nuxt-gtag write inline <script>s, so script-src needs 'unsafe-inline';
- * the rest is limited to Supabase, Google Fonts and Google Analytics. frame-ancestors 'none' stops
+ * the rest is limited to Supabase, Google Fonts, Google Analytics and Cloudflare Turnstile. frame-ancestors 'none' stops
  * other sites from framing the app (clickjacking).
  */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
+  // Cloudflare Turnstile (人機驗證 in the 登入 dialog) runs in an iframe
+  "frame-src https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -72,6 +74,8 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
+      // Cloudflare Turnstile site key (public); empty → no captcha (Supabase's Captcha protection off)
+      turnstileSiteKey: process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY || '',
     },
   },
 

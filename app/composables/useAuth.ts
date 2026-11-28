@@ -49,8 +49,8 @@ export const useAuth = () => {
     }
   };
 
-  // Magic Link 登入
-  const signInWithMagicLink = async (email: string): Promise<ISignInResult> => {
+  // Magic Link 登入 (captchaToken: from Turnstile, required while Supabase's Captcha protection is on)
+  const signInWithMagicLink = async (email: string, captchaToken?: string): Promise<ISignInResult> => {
     try {
       isLoading.value = true;
       error.value = null;
@@ -63,6 +63,7 @@ export const useAuth = () => {
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          captchaToken,
         },
       });
 
