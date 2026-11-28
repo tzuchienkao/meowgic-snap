@@ -113,9 +113,12 @@ Notes:
 - Preview the production build (Cloudflare Pages / workerd) at http://localhost:8788:
 
 ```bash
-docker exec meowgic-snap-app-1 pnpm build:pages
-docker compose --profile preview up -d pages-preview
+docker compose up -d                 # the app container builds it, so it must be running
+docker compose exec app pnpm build:pages
+docker compose --profile preview up -d --force-recreate pages-preview
 ```
+
+The preview takes about a minute to start (it installs wrangler); after that, rebuilding with `pnpm build:pages` is picked up without restarting it. Stop everything, preview included, with `docker compose --profile preview down` (a plain `docker compose down` leaves the stopped preview container behind, tied to a network that no longer exists).
 
 ---
 
