@@ -8,7 +8,7 @@ services:
       - /app/node_modules
     working_dir: /app
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - COREPACK_ENABLE_DOWNLOAD_PROMPT=0
       - NITRO_HOST=0.0.0.0
@@ -17,31 +17,18 @@ services:
     command: sh -c "corepack enable && pnpm install --silent && pnpm dev"
     depends_on: []
 
+  # Production preview (Cloudflare Pages / workerd) of the dist that the app container builds:
+  #   docker exec meowgic-snap-app-1 pnpm build:pages
+  #   docker compose --profile preview up -d pages-preview   → http://localhost:8788
+  # Not started by a plain `docker compose up`. ca-certificates: workerd needs them for HTTPS to Supabase.
   pages-preview:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      # platform: linux/arm64  # uncomment on Apple Silicon or CI if needed
-    image: meowgic-snap-pages:latest
-    # Image-only preview (production-style): no host mount
+    image: node:22-bookworm-slim
+    profiles: [preview]
+    volumes:
+      - ./dist:/app/dist:ro
     working_dir: /app
     ports:
-      - "8788:8788"
-    command: sh -c "npx -y wrangler@4 pages dev dist --ip 0.0.0.0 --port 8788"
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - app
-
-  db:
-    image: postgres:15
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - db-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-volumes:
-  db-data:
+      - "127.0.0.1:8788:8788"
+    command: >-
+      sh -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates > /dev/null
+      && npx -y wrangler@4 pages dev dist --ip 0.0.0.0 --port 8788"

@@ -80,7 +80,7 @@ Check out the [deployment documentation](https://nuxt.com/docs/getting-started/d
 - Framework: Nuxt 3 (Vue 3, Nitro)
 - Runtime: Node.js 22 (containerized)
 - Package manager: pnpm (Corepack)
-- Database (optional local dev): Postgres (via Docker Compose)
+- Database: Supabase (cloud; SQL in `supabase/migrations/`)
 - Dev tooling: Docker / Docker Compose for local development
 
 ## Quickstart — Development (Docker Compose)
@@ -88,15 +88,13 @@ Check out the [deployment documentation](https://nuxt.com/docs/getting-started/d
 
 ```bash
 cp .env.example .env
-# Edit .env to confirm POSTGRES_* values
+# Fill in the Supabase URL and anon key
 ```
 
 2. Start development environment (build + hot-reload):
 
 ```bash
-docker compose up --build
-# or (older syntax)
-docker-compose up --build
+docker compose up
 ```
 
 3. Open the app in your browser:
@@ -105,15 +103,19 @@ docker-compose up --build
 
 4. Useful commands:
 
-- Tail logs: `docker compose logs -f app` or `docker compose logs -f db`
+- Tail logs: `docker compose logs -f app`
 - Enter app container: `docker compose exec app sh`
 - Stop and remove containers: `docker compose down`
-- Remove volumes (clears DB): `docker compose down -v`
 
 Notes:
 - The app service uses `node:22-alpine` and runs `corepack enable && pnpm install && pnpm dev` for local development with hot reload.
 - Do not commit `.env` (contains secrets). Use `.env.example` as template.
-- For production builds the included `Dockerfile` uses a multi-stage build and Node 22 to produce a runnable image.
+- Preview the production build (Cloudflare Pages / workerd) at http://localhost:8788:
+
+```bash
+docker exec meowgic-snap-app-1 pnpm build:pages
+docker compose --profile preview up -d pages-preview
+```
 
 ---
 
