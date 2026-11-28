@@ -84,7 +84,7 @@ describe('insertRecord', () => {
   });
 
   it('does not send user_id (the table defaults it to the signed-in user)', async () => {
-    const insert = vi.fn(() => ({ select: () => ({ single: async () => ({ data: { id: 'r1' }, error: null }) }) }));
+    const insert = vi.fn((_row: Record<string, unknown>) => ({ select: () => ({ single: async () => ({ data: { id: 'r1' }, error: null }) }) }));
     supabase.from.mockReturnValueOnce({ insert } as unknown as ReturnType<FakeSupabase['from']>);
 
     await insertRecord(record);

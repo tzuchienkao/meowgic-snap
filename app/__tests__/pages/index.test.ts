@@ -44,7 +44,7 @@ const PLACEHOLDER = '算好的結果會出現在這裡喵';
 const PLACEHOLDER_CAPTION = '貓咪插畫：橘白貓趴著等';
 const ERROR_TITLE = '喵？有幾行看不懂 (ΦдΦ)';
 
-let userRef: Ref<unknown>;
+let userRef: Ref<{ id: string } | null>;
 let themeRef: Ref<'light' | 'dark'>;
 let navigateToMock: ReturnType<typeof vi.fn>;
 let showToastMock: ReturnType<typeof vi.fn>;

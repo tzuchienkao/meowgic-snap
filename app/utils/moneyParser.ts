@@ -330,7 +330,7 @@ export function parseMoneySnap(input: string, { includesNames = true }: ParseOpt
   let isFirstContentLine = true;
   
   for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
+    const trimmed = lines[i]!.trim();
     if (!trimmed) continue;
 
     // Skip a header row, only if it is the first non-blank line

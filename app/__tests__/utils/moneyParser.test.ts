@@ -38,19 +38,19 @@ describe('parseMoneySnap - Parser Core Logic', () => {
     it('should parse amount with NT$ prefix', () => {
       const result = parseMoneySnap('王五,NT$32000');
       expect(result.success).toBe(true);
-      expect(result.entries[0].amount).toBe(32000);
+      expect(result.entries[0]!.amount).toBe(32000);
     });
 
     it('should parse amount with thousand separators in quotes', () => {
       const result = parseMoneySnap('李四,"45800"');
       expect(result.success).toBe(true);
-      expect(result.entries[0].amount).toBe(45800);
+      expect(result.entries[0]!.amount).toBe(45800);
     });
 
     it('should parse amount with thousand separators and NT$', () => {
       const result = parseMoneySnap('王五,NT$32000');
       expect(result.success).toBe(true);
-      expect(result.entries[0].amount).toBe(32000);
+      expect(result.entries[0]!.amount).toBe(32000);
     });
 
     it('should reject decimal amounts (integer-only)', () => {
@@ -120,7 +120,7 @@ describe('parseMoneySnap - Parser Core Logic', () => {
       const input = '張三,999999';
       const result = parseMoneySnap(input);
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(999999);
+      expect(result.entries[0]!.amount).toBe(999999);
     });
 
     it('should report invalid amount (non-numeric)', () => {
@@ -197,7 +197,7 @@ describe('parseMoneySnap - Parser Core Logic', () => {
       // Both NT$ and ￥ are removed, leaving valid "32000"
       // This is actually valid, so we should update the test
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(32000);
+      expect(result.entries[0]!.amount).toBe(32000);
     });
 
     it('should reject amount with special characters embedded', () => {
@@ -215,19 +215,19 @@ describe('parseMoneySnap - Parser Core Logic', () => {
     it('should accept properly formatted quoted amount', () => {
       const result = parseMoneySnap('李四,"45,800"');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(45800);
+      expect(result.entries[0]!.amount).toBe(45800);
     });
 
     it('should accept properly formatted currency with thousand separators', () => {
       const result = parseMoneySnap('王五,NT$32,000');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(32000);
+      expect(result.entries[0]!.amount).toBe(32000);
     });
 
     it('should accept amount with leading/trailing spaces around currency', () => {
       const result = parseMoneySnap('王五, NT$ 32000 ');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(32000);
+      expect(result.entries[0]!.amount).toBe(32000);
     });
   });
 
@@ -263,31 +263,31 @@ describe('parseMoneySnap - Parser Core Logic', () => {
     it('should parse single digit amount', () => {
       const result = parseMoneySnap('王五,1');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(1);
+      expect(result.entries[0]!.amount).toBe(1);
     });
 
     it('should parse amount with leading zeros', () => {
       const result = parseMoneySnap('王五,000100');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(100);
+      expect(result.entries[0]!.amount).toBe(100);
     });
 
     it('should parse amount with positive sign', () => {
       const result = parseMoneySnap('王五,+100');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(100);
+      expect(result.entries[0]!.amount).toBe(100);
     });
 
     it('should parse thousand separators in quoted amount', () => {
       const result = parseMoneySnap('李四,"123,456"');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(123456);
+      expect(result.entries[0]!.amount).toBe(123456);
     });
 
     it('should parse amount with NT$ and separators', () => {
       const result = parseMoneySnap('王五,NT$999,999');
       expect(result.entries).toHaveLength(1);
-      expect(result.entries[0].amount).toBe(999999);
+      expect(result.entries[0]!.amount).toBe(999999);
     });
 
     it('should reject amount with multiple decimal points', () => {

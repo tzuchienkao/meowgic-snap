@@ -68,8 +68,8 @@ const titleId = useId();
 const { preferences, savePreferences } = usePreferences();
 const { showToast } = useToast();
 
-// Draft edited in the drawer; null until the drawer is opened
-const draft = ref<IPreferences | null>(null);
+// Draft edited in the drawer; undefined until the drawer is opened
+const draft = ref<IPreferences>();
 const isDirty = computed(() => !!draft.value && !arePreferencesEqual(draft.value, preferences.value));
 
 const open = () => {

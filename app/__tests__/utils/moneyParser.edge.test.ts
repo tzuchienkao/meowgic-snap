@@ -43,7 +43,7 @@ const expectSingleAmount = (input: string, amount: number) => {
   const result = parseMoneySnap(input);
   expect(result.errors).toEqual([]);
   expect(result.entries).toHaveLength(1);
-  expect(result.entries[0].amount).toBe(amount);
+  expect(result.entries[0]!.amount).toBe(amount);
   return result;
 };
 
@@ -472,7 +472,7 @@ describe('parseMoneySnap - edge cases', () => {
   describe('Delimiter precedence', () => {
     it('should prefer tab over comma, so commas in amount are thousand separators', () => {
       const result = expectSingleAmount('張三\t1,000', 1000);
-      expect(result.entries[0].name).toBe('張三');
+      expect(result.entries[0]!.name).toBe('張三');
     });
 
     it('should reject when tab is the delimiter and the name side contains a comma', () => {
@@ -490,7 +490,7 @@ describe('parseMoneySnap - edge cases', () => {
 
     it('should fall back to comma when the only tab is trailing (trimmed away)', () => {
       const result = expectSingleAmount('張三,100\t', 100);
-      expect(result.entries[0].name).toBe('張三');
+      expect(result.entries[0]!.name).toBe('張三');
     });
 
     it('should split on the earliest comma, half- or full-width', () => {
@@ -544,7 +544,7 @@ describe('parseMoneySnap - edge cases', () => {
       const result = parseMoneySnap(validLines(1001).join('\n'));
       expect(result.entries).toHaveLength(1000);
       expect(result.errors).toEqual([LIMIT_ERROR]);
-      expect(result.entries[999].name).toBe('n999');
+      expect(result.entries[999]!.name).toBe('n999');
       expectInvariants(result);
     });
 
