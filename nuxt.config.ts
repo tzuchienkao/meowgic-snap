@@ -1,6 +1,38 @@
 import tailwindcss from '@tailwindcss/vite';
 import { SITE_TITLE } from './app/constants/site';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+/**
+ * Content-Security-Policy (production only: the dev server needs Vite's inline scripts and HMR
+ * websocket). Nuxt and nuxt-gtag write inline <script>s, so script-src needs 'unsafe-inline';
+ * the rest is limited to Supabase, Google Fonts and Google Analytics. frame-ancestors 'none' stops
+ * other sites from framing the app (clickjacking).
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  ...(isProduction && {
+    'Content-Security-Policy': CONTENT_SECURITY_POLICY,
+    'Strict-Transport-Security': 'max-age=31536000',
+  }),
+};
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -9,7 +41,7 @@ export default defineNuxtConfig({
 
   // GA4: the ID comes from NUXT_PUBLIC_GTAG_ID at runtime (set it only in Cloudflare Pages' Production env)
   gtag: {
-    enabled: process.env.NODE_ENV === 'production',
+    enabled: isProduction,
   },
   css: ['~/assets/css/main.css'],
 
@@ -31,8 +63,12 @@ export default defineNuxtConfig({
     preset: 'cloudflare-pages',
   },
 
+  routeRules: {
+    '/**': { headers: SECURITY_HEADERS },
+  },
+
   runtimeConfig: {
-    supabaseSecretKey: process.env.NUXT_SUPABASE_SERVICE_ROLE_KEY,
+    // No service role key: nothing on the server needs to bypass RLS, so the app never loads it
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,

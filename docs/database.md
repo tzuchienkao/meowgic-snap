@@ -62,6 +62,12 @@
 
 訪客（`anon`）沒有任何權限。
 
+RLS 決定能動哪幾列，欄位權限決定能動哪些欄位（[`20261128000000_harden_records.sql`](../supabase/migrations/20261128000000_harden_records.sql)）：
+
+- 修改只開放 `name`（前端只有改名），不能改金額、明細或 `created_at`。
+- 新增不能指定 `id`、`user_id`、`created_at`、`updated_at`，一律用預設值，所以無法把日期改到未來來躲過 2 年的保存期限。
+- `denominations` 最多 10 種；`rows` 必須是陣列、筆數介於 1 和 `entry_count` 之間，且大小有上限，避免有人繞過前端直接呼叫 API 塞入大量資料。
+
 「2 年內」寫在 RLS 裡，而不是只寫在前端的查詢條件：這樣不管從哪裡查（包括直接呼叫 Supabase API），都拿不到超過 2 年的紀錄，前端也不會因為漏寫條件而顯示出來。
 
 ## 4. 常用查詢與索引
@@ -103,6 +109,7 @@ SQL 存在專案的 `supabase/migrations/`（Supabase CLI 預設讀取的位置�
 1. [`20261126000000_create_records.sql`](../supabase/migrations/20261126000000_create_records.sql)：資料表、`updated_at` trigger、索引、RLS。
 2. [`20261126000100_schedule_delete_old_records.sql`](../supabase/migrations/20261126000100_schedule_delete_old_records.sql)：啟用 `pg_cron`，建立每天刪除超過 2 年紀錄的排程。要在第 1 份之後執行，因為它會刪 `records` 的資料。
 3. [`20261127000000_create_dashboard_summary.sql`](../supabase/migrations/20261127000000_create_dashboard_summary.sql)：儀表板彙總函式 `get_dashboard_summary()`。
+4. [`20261128000000_harden_records.sql`](../supabase/migrations/20261128000000_harden_records.sql)：欄位權限（修改只能改名、新增不能指定日期）與資料大小限制。
 
 之後要修改資料庫（例如加欄位、改排程時間），不要改已經執行過的檔案，而是新增一份時間戳記更晚的 migration。
 

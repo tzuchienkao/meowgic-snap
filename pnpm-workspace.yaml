@@ -2,3 +2,7 @@ packages:
   - '.'
 allowBuilds:
   esbuild: true
+# Patched versions of build / dev-server-only dependencies that nuxt has not picked up yet (pnpm audit)
+overrides:
+  node-forge: ^1.4.3
+  serialize-javascript: ^7.1.3
