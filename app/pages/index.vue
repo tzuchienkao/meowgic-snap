@@ -86,7 +86,17 @@
                 size="sm"
                 icon="↑"
                 label="匯入 CSV"
-                :disabled="isProcessing"
+                :disabled="isProcessing || resultState.isCalculated"
+                @click="onImportCsvClick"
+              />
+              <input
+                ref="csvFileInput"
+                class="money-snap__file"
+                type="file"
+                :accept="CSV_ACCEPT"
+                tabindex="-1"
+                aria-hidden="true"
+                @change="onCsvFileChange"
               />
               <app-chip class="money-snap__counter" :tone="entryCount > MAX_ENTRIES ? 'warn' : 'soft'">
                 已貼 {{ entryCount }} / {{ formatNumber(MAX_ENTRIES) }} 筆
@@ -318,7 +328,8 @@
 <script setup lang="ts">
 import { formatNumber } from '~/utils/format';
 import { toDenominationItems } from '~/utils/denominations';
-import { computed, ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
+import { CSV_ACCEPT, CsvFileError, readCsvFile } from '~/utils/csvFile';
 
 import { CurrencyUnit } from '~/constants/currency';
 import { RouteName } from '~/constants/navigation';
@@ -382,6 +393,11 @@ const EXPORT_MESSAGES = {
   csvDone: 'CSV 匯出好了喵',
   csvFailed: 'CSV 匯出失敗了喵，再試一次看看'
 } as const;
+
+const IMPORT_MESSAGES: Record<CsvFileError, string> = {
+  [CsvFileError.TooLarge]: '檔案太大了喵，最多 1 MB',
+  [CsvFileError.Unreadable]: '這個檔案讀不出來喵，換一個 CSV 試試',
+};
 
 const RECORD_MESSAGES = {
   saveFailed: '紀錄沒有存成功喵',
@@ -735,6 +751,31 @@ const onCopyBoxSelect = (event: Event) => {
   (event.target as HTMLTextAreaElement).select();
 };
 
+// 匯入 CSV: the hidden file input opens the picker; the file's text goes into the box as if pasted
+const csvFileInput = useTemplateRef<HTMLInputElement>('csvFileInput');
+
+const onImportCsvClick = () => {
+  csvFileInput.value?.click();
+};
+
+const onCsvFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  // Clear the pick so choosing the same file again still fires `change`
+  input.value = '';
+  if (!file) return;
+
+  const result = await readCsvFile(file);
+  if (!result.ok) {
+    showToast(IMPORT_MESSAGES[result.error]);
+    return;
+  }
+  moneySnapInput.value = result.text;
+  validationErrors.value = [];
+  resetBatchState();
+  gtag('event', AnalyticsEvent.ImportCsv, { entry_count: entryCount.value });
+};
+
 const onClearClick = () => {
   moneySnapInput.value = '';
   validationErrors.value = [];
@@ -946,6 +987,10 @@ const onLoginSaveClick = async () => {
 }
 .money-snap__notices {
   @apply flex justify-between items-center;
+}
+/* Opened from 匯入 CSV; display: none keeps it out of the row */
+.money-snap__file {
+  @apply hidden;
 }
 .money-snap__errors {
   @apply flex flex-col gap-1;

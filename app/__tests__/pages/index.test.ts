@@ -592,7 +592,42 @@ describe('pages/index.vue', () => {
 
       await typeAndCalculate(wrapper, '張三,1', '直接計算');
       expect(wrapper.find('textarea').attributes('disabled')).toBeUndefined();
-      expect(findButton(wrapper, '匯入 CSV')!.attributes('disabled')).toBeUndefined();
+      // The box is read-only while a result shows, so there is nothing to import into
+      expect(findButton(wrapper, '匯入 CSV')!.attributes('disabled')).toBeDefined();
+    });
+  });
+
+  describe('匯入 CSV', () => {
+    const pickFile = async (wrapper: ReturnType<typeof mountPage>, file: File) => {
+      const input = wrapper.find<HTMLInputElement>('input[type="file"]');
+      Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
+      await input.trigger('change');
+      await flushPromises();
+    };
+
+    it('the button opens the CSV file picker', async () => {
+      const wrapper = mountPage();
+      const input = wrapper.find<HTMLInputElement>('input[type="file"]');
+      expect(input.attributes('accept')).toBe('.csv,text/csv');
+      const click = vi.spyOn(input.element, 'click');
+      await findButton(wrapper, '匯入 CSV')!.trigger('click');
+      expect(click).toHaveBeenCalled();
+    });
+
+    it('puts the file text in the box and counts its lines', async () => {
+      const wrapper = mountPage();
+      await pickFile(wrapper, new File(['姓名,金額\n張三,18500\n李四,"45,800"'], 'data.csv'));
+      expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('姓名,金額\n張三,18500\n李四,"45,800"');
+      expect(wrapper.text()).toContain('已貼 2 / 1,000 筆');
+      expect(gtagMock).toHaveBeenCalledWith('event', 'import_csv', { entry_count: 2 });
+    });
+
+    it('a file over 1 MB → toast, box unchanged', async () => {
+      const wrapper = mountPage();
+      await wrapper.find('textarea').setValue('張三,1');
+      await pickFile(wrapper, new File([new Uint8Array(1024 * 1024 + 1)], 'big.csv'));
+      expect(showToastMock).toHaveBeenCalledWith('檔案太大了喵，最多 1 MB');
+      expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('張三,1');
     });
   });
 

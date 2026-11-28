@@ -6,6 +6,8 @@ export enum AnalyticsEvent {
   CopySlip = 'copy_slip',
   DownloadImage = 'download_image',
   ExportCsv = 'export_csv',
+  /** 首頁 匯入 CSV: entry_count is the number of lines read in */
+  ImportCsv = 'import_csv',
   /** 複製第 1,001 筆之後的 N 筆: entry_count is the number of lines copied */
   CopyRest = 'copy_rest',
   /** 紀錄頁 匯出這筆 CSV: entry_count is the record's 筆數 */
