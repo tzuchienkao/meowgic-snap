@@ -490,9 +490,8 @@ const onExportRangeClick = async () => {
 
 /* Sliding pill behind the pressed chip (as NavPills). With anchor positioning the pressed chip itself
    turns transparent and the pill paints it; the chips' labels sit above the pill */
-/* isolate: the label / pill z-index stays inside the chips (the mobile ☰ menu goes over them) */
 .range-card__chips {
-  @apply relative isolate;
+  @apply relative;
 }
 .range-card__chips :deep(.app-filter-chip__label) {
   @apply relative z-2;
