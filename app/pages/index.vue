@@ -27,47 +27,7 @@
           </div>
 
           <!-- Instructions -->
-          <div class="instruction">
-            <div class="instruction--notice">
-              <p class="text-ink font-bold">注意（不要說我沒說）：</p>
-              <ul>
-                <li v-if="includesNames" class="my-1">
-                  <p>每一行只能有一筆姓名,金額（手動輸入用逗號；從試算表複製貼上會自動辨識）。例如：張三,18500。</p>
-                </li>
-                <li v-else class="my-1">
-                  <p>每一行只能有一筆金額。例如：18500。</p>
-                </li>
-                <li class="my-1">
-                  <p>每次最多可貼入 {{ MAX_ENTRIES }} 筆。</p>
-                </li>
-                <li class="my-1">
-                  <p>每筆金額之整數部分上限為 {{ formatNumber(MAX_AMOUNT_PER_ENTRY) }}。</p>
-                </li>
-                <template v-if="includesNames">
-                  <li class="my-1">
-                    <p>姓名可重複多筆，系統會自動加總（每人合計上限同為 {{ formatNumber(MAX_AMOUNT_PER_ENTRY) }}）。</p>
-                  </li>
-                  <li class="my-1">
-                    <p>姓名最多 {{ MAX_NAME_LENGTH }} 字；金額只能是正整數，前後只能加幣別或單位（如 NT$、元）。</p>
-                  </li>
-                </template>
-                <li v-else class="my-1">
-                  <p>金額只能是正整數，前後只能加幣別或單位（如 NT$、元）。</p>
-                </li>
-              </ul>
-            </div>
-            <div class="instruction--tips">
-              <p class="text-ink font-bold">從 CSV 貼上小提示：</p>
-              <ul>
-                <li class="my-1">
-                  <p>CSV 檔案中若金額包含千分位逗號，請用雙引號包住（如："45,800"），避免被誤判為欄位分隔符。</p>
-                </li>
-                <li class="my-1">
-                  <p>支援 Excel 直接複製貼上或另存 CSV 上傳（系統將自動過濾引號、貨幣符號與千分位逗號）。</p>
-                </li>
-              </ul>
-            </div>
-          </div>
+          <home-instructions :includes-names="includesNames" />
 
           <!-- Input Textarea -->
           <div class="money-snap">
@@ -172,43 +132,18 @@
            (DS: only one heaviest element per screen) -->
       <div>
         <!-- Too many entries: offer to calculate the first MAX_ENTRIES or copy the rest -->
-        <app-cat-ear-card v-if="isOver" class="over-card">
-          <div class="over-card__content">
-            <app-illustration-slot class="over-card__art">
-              <img src="~/assets/images/cats-under-money.svg" alt="貓咪插畫：被一疊鈔票壓住" />
-            </app-illustration-slot>
-            <div class="over-card__text">
-              <h2 class="over-card__title">太多了喵，算不動 (=ΦдΦ=)</h2>
-              <p class="over-card__desc">
-                你貼了 <b class="text-ink">{{ formatNumber(entryCount) }}</b> 筆，每次最多只支援
-                {{ formatNumber(MAX_ENTRIES) }} 筆，多出 <b class="text-warn-text">{{ formatNumber(extraCount) }}</b> 筆。
-              </p>
-            </div>
-            <div class="over-card__split">
-              <div class="over-card__split-item">
-                <span class="over-card__split-label">這次先算</span>
-                <span class="over-card__split-value">{{ formatNumber(MAX_ENTRIES) }} 筆</span>
-              </div>
-              <span class="over-card__split-plus" aria-hidden="true">＋</span>
-              <div class="over-card__split-item">
-                <span class="over-card__split-label">下一批</span>
-                <span class="over-card__split-value text-warn-text">{{ formatNumber(extraCount) }} 筆</span>
-              </div>
-            </div>
-            <app-button variant="primary" full :label="calcFirstLabel" @click="onCalcFirstClick" />
-            <app-button variant="secondary" full :label="copyRestLabel" @click="onCopyRestClick" />
-          </div>
-        </app-cat-ear-card>
+        <home-over-card
+          v-if="isOver"
+          :entry-count="entryCount"
+          :is-login="isLogin"
+          :is-rest-copied="isRestCopied"
+          @calc-first="onCalcFirstClick"
+          @copy-rest="onCopyRestClick"
+        />
 
-        <app-illustration-slot
-          v-else-if="!resultState.isCalculated"
-          class="result-placeholder"
-          radius="card"
-        >
+        <app-empty-state v-else-if="!resultState.isCalculated" class="result-placeholder" message="算好的結果會出現在這裡喵">
           <img src="~/assets/images/tabby-cat-lying-stretched.svg" alt="貓咪插畫：橘白貓趴著等" />
-
-          <p class="result-placeholder__text">算好的結果會出現在這裡喵</p>
-        </app-illustration-slot>
+        </app-empty-state>
 
         <div v-else class="result-area">
           <app-total-card
@@ -238,69 +173,17 @@
 
           <!-- Export actions -->
           <div class="result-area__actions">
-            <app-action-tile glyph="⧉" label="複製領款單" @click="onCopySlipClick" />
-            <app-action-tile glyph="▣" label="下載明細圖" @click="onDownloadImageClick" />
-            <app-action-tile glyph="↓" label="匯出 CSV" @click="onExportCsvClick" />
+            <app-action-tile glyph="⧉" label="複製領款單" @click="copySlip" />
+            <app-action-tile glyph="▣" label="下載明細圖" @click="downloadImage" />
+            <app-action-tile glyph="↓" label="匯出 CSV" @click="exportCsv" />
           </div>
 
-          <!-- Denomination totals across everyone; a group with nothing enabled is left out -->
-          <section class="result-area__denoms" aria-label="面額統計">
-            <template v-if="billCells.length">
-              <h3 class="result-area__section-title">紙鈔</h3>
-              <div class="result-area__bills">
-                <app-denom-cell
-                  v-for="cell in billCells"
-                  :key="cell.value"
-                  :value="cell.value"
-                  :count="cell.count"
-                  :state="cell.isTop ? DenomCellState.Top : undefined"
-                />
-              </div>
-            </template>
-            <template v-if="coinCells.length">
-              <h3 class="result-area__section-title">硬幣</h3>
-              <div class="result-area__coins">
-                <app-denom-cell
-                  v-for="cell in coinCells"
-                  :key="cell.value"
-                  :kind="DenomKind.Coin"
-                  :value="cell.value"
-                  :count="cell.count"
-                />
-              </div>
-              <p class="result-area__unit">單位：{{ CurrencyUnit.Coin }}</p>
-            </template>
-          </section>
-
-          <!-- Per-person details (collapsible) -->
-          <div class="result-area__details">
-            <button
-              type="button"
-              class="result-area__details-toggle"
-              :aria-expanded="isDetailsOpen"
-              aria-controls="result-details-list"
-              @click="isDetailsOpen = !isDetailsOpen"
-            >
-              <span>每筆明細</span>
-              <span class="result-area__details-hint">{{ isDetailsOpen ? '收起 ▲' : '展開 ▼' }}</span>
-            </button>
-            <ul v-show="isDetailsOpen" id="result-details-list" class="summary-card__rows">
-              <li v-for="row in resultRows" :key="row.name" class="summary-card__row">
-                <div class="summary-card__row-head">
-                  <span>{{ row.name }}</span>
-                  <span>{{ formatNumber(row.total) }} {{ CurrencyUnit.Dollar }}</span>
-                </div>
-                <div class="summary-card__row-body">
-                  <app-denom-badge
-                    v-for="item in row.items"
-                    :key="`${row.name}-${item.denomination}`"
-                    :value="item.denomination"
-                    :count="item.count"
-                  />
-                </div>
-              </li>
-            </ul>
-          </div>
+          <home-result-breakdown
+            v-model:details-open="isDetailsOpen"
+            :bill-cells="billCells"
+            :coin-cells="coinCells"
+            :rows="resultRows"
+          />
         </div>
       </div>
     </div>
@@ -326,7 +209,6 @@
 
 <script setup lang="ts">
 import { formatNumber } from '~/utils/format';
-import { toDenominationItems } from '~/utils/denominations';
 import { computed, ref, useTemplateRef } from 'vue';
 import { CSV_ACCEPT, CsvFileError, readCsvFile } from '~/utils/csvFile';
 
@@ -337,29 +219,13 @@ import { BATCH_DEFAULT, BATCH_OFFSET, PASTE_FORMAT_LABEL } from '~/constants/rec
 
 import { usePreferences } from '~/composables/usePreferences';
 
-import { DenomCellState, DenomKind, DenominationOrder, type IDenominationItem } from '~/types/denomination';
+import type { IResultTotal } from '~/types/denomination';
+import { useResultBreakdown } from '~/composables/useResultBreakdown';
+import { useResultExports } from '~/composables/useResultExports';
 
 import { formatDenominationLabel } from '~/utils/preferences';
-import {
-  ALL_DENOMINATIONS,
-  calculateDenominations,
-  countEntryLines,
-  isBill,
-  MAX_AMOUNT_PER_ENTRY,
-  MAX_ENTRIES,
-  MAX_NAME_LENGTH,
-  parseMoneySnap,
-  splitEntryLines,
-  type ParsedEntry,
-} from '~/utils/moneyParser';
-import {
-  buildCsv,
-  buildExportFileName,
-  buildSlipImageModel,
-  buildSlipText,
-  ExportExt,
-} from '~/utils/exporters';
-import { copyText, createCsvBlob, downloadBlob, drawSlipImage } from '~/utils/download';
+import { MAX_ENTRIES, parseMoneySnap, splitEntryLines, type ParsedEntry } from '~/utils/moneyParser';
+import { copyText } from '~/utils/download';
 import { insertRecord, buildRecordName, toInputFormat } from '~/utils/records';
 
 // Composables
@@ -368,30 +234,9 @@ const { showToast } = useToast();
 const { preferences } = usePreferences();
 const { gtag } = useGtag();
 
-interface IResultTotal {
-  name: string;
-  total: number;
-}
-
-interface IResultRow extends IResultTotal {
-  /** Non-zero denominations only, smallest → largest */
-  items: IDenominationItem[];
-  /** Amount the enabled denominations cannot make */
-  remainder: number;
-}
-
 const MAX_VISIBLE_ERRORS = 5;
 // How long the copy-rest button reads 「已複製 ✓」
 const COPIED_LABEL_MS = 1600;
-
-const EXPORT_MESSAGES = {
-  copyDone: '領款單已複製，可以貼給銀行了喵',
-  copyFailed: '複製失敗了喵，再試一次看看',
-  imageDone: '明細圖下載好了喵',
-  imageFailed: '明細圖下載失敗了喵，再試一次看看',
-  csvDone: 'CSV 匯出好了喵',
-  csvFailed: 'CSV 匯出失敗了喵，再試一次看看'
-} as const;
 
 const IMPORT_MESSAGES: Record<CsvFileError, string> = {
   [CsvFileError.TooLarge]: '檔案太大了喵，最多 1 MB',
@@ -454,17 +299,6 @@ const entrySplit = computed(() =>
 const entryCount = computed(() => entrySplit.value.lines.length);
 const extraCount = computed(() => Math.max(0, entryCount.value - MAX_ENTRIES));
 
-const calcFirstLabel = computed(() =>
-  isLogin.value
-    ? `只算前 ${formatNumber(MAX_ENTRIES)} 筆並存檔`
-    : `只算前 ${formatNumber(MAX_ENTRIES)} 筆`,
-);
-const copyRestLabel = computed(() =>
-  isRestCopied.value
-    ? '已複製 ✓'
-    : `複製第 ${formatNumber(MAX_ENTRIES + 1)} 筆之後的 ${formatNumber(extraCount.value)} 筆`,
-);
-
 // Line errors start with 「第 N 行」; anything else (e.g. the generic format message) is shown as-is.
 const isLineError = (error: string) => error.startsWith('第 ');
 const lineErrors = computed(() => validationErrors.value.filter(isLineError));
@@ -485,7 +319,6 @@ const placeholderText = computed(() =>
     : '18500\n"45,800"\nNT$32,000\n1999',
 );
 
-
 const summaryChips = computed(() => {
   const { entryCount, uniqueNames, calculatedAt } = resultState.value;
   const formatChip = PASTE_FORMAT_LABEL[toInputFormat(resultState.value.includesNames)];
@@ -494,70 +327,28 @@ const summaryChips = computed(() => {
   return chips;
 });
 
-// Breakdown per person, always with the current 偏好設定 denominations
-const resultRows = computed<IResultRow[]>(() =>
-  resultState.value.rows.map((row) => {
-    const breakdown = calculateDenominations(row.total, activeDenominations.value);
-    return {
-      ...row,
-      items: toDenominationItems(breakdown.denominations, DenominationOrder.SmallFirst),
-      remainder: breakdown.remainder,
-    };
-  }),
+const { resultRows, denominationTotals, billCells, coinCells, remainder } = useResultBreakdown(
+  computed(() => resultState.value.rows),
+  activeDenominations,
 );
 
-/**
- * Remainder warning: total left over and the smallest turned-off denomination that would have
- * been needed (a remainder is always below the smallest enabled one, so every denomination the
- * full breakdown uses for it is a turned-off one — usually NT$1).
- */
+// A needed small denomination is turned off: how much is left and where to turn it on
 const remainderNotice = computed(() => {
-  const rows = resultRows.value.filter((row) => row.remainder > 0);
-  if (!rows.length) return '';
-  const total = rows.reduce((sum, row) => sum + row.remainder, 0);
-  const needed = Math.min(
-    ...rows.flatMap((row) =>
-      toDenominationItems(calculateDenominations(row.remainder, ALL_DENOMINATIONS).denominations)
-        .map((item) => item.denomination),
-    ),
-  );
+  if (!remainder.value) return '';
+  const { total, needed } = remainder.value;
   const fix = isLogin.value ? '到設定頁把它打開吧。' : '到左邊的偏好設定把它打開吧。';
   return `還有 ${formatNumber(total)} ${CurrencyUnit.Dollar}找不開喵，因為你關掉了 ${formatDenominationLabel(needed)}。${fix}`;
 });
 
-// Totals per denomination across everyone (bills large → small, then coins)
-const denominationTotals = computed(() => {
-  const totals: Record<number, number> = {};
-  resultRows.value.forEach((row) => {
-    row.items.forEach(({ denomination, count }) => {
-      totals[denomination] = (totals[denomination] ?? 0) + count;
-    });
-  });
-  return totals;
+const { copySlip, downloadImage, exportCsv } = useResultExports({
+  totalAmount: computed(() => resultState.value.totalAmount),
+  entryCount: computed(() => resultState.value.entryCount),
+  includesNames: computed(() => resultState.value.includesNames),
+  calculatedDate,
+  rows: resultRows,
+  totals: denominationTotals,
+  denominations: activeDenominations,
 });
-
-// DS: the most-used bill is highlighted (ties → the larger bill); no highlight when no bills are used
-const billCells = computed(() => {
-  const cells = activeDenominations.value.filter(isBill).map((value) => ({
-    value,
-    count: denominationTotals.value[value] ?? 0,
-    isTop: false,
-  }));
-  // No bills enabled (coins only) → no cells and no highlight
-  const top = cells.reduce<(typeof cells)[number] | undefined>(
-    (best, cell) => (!best || cell.count > best.count ? cell : best),
-    undefined,
-  );
-  if (top && top.count > 0) top.isTop = true;
-  return cells;
-});
-
-const coinCells = computed(() =>
-  activeDenominations.value.filter((value) => !isBill(value)).map((value) => ({
-    value,
-    count: denominationTotals.value[value] ?? 0,
-  })),
-);
 
 const formatTime = (date: Date) => {
   return date.toLocaleTimeString('zh-TW', {
@@ -782,62 +573,6 @@ const onClearClick = () => {
   resultState.value = emptyResultState();
 };
 
-// Export actions: all use the denominations the calculation used
-const slipInput = () => ({
-  totalAmount: resultState.value.totalAmount,
-  totals: denominationTotals.value,
-  denominations: activeDenominations.value,
-});
-
-// GA: which export was used and whether it worked, with the entry count only (no names or amounts)
-const trackExport = (event: AnalyticsEvent, isSuccess: boolean) => {
-  gtag('event', event, {
-    result: isSuccess ? AnalyticsResult.Success : AnalyticsResult.Failed,
-    entry_count: resultState.value.entryCount,
-  });
-};
-
-const onCopySlipClick = async () => {
-  const copied = await copyText(buildSlipText(slipInput()));
-  trackExport(AnalyticsEvent.CopySlip, copied);
-  showToast(copied ? EXPORT_MESSAGES.copyDone : EXPORT_MESSAGES.copyFailed);
-};
-
-const onDownloadImageClick = async () => {
-  try {
-    const model = buildSlipImageModel({
-      ...slipInput(),
-      calculatedAt: calculatedDate.value ?? new Date(),
-      entryCount: resultState.value.entryCount,
-    });
-    const blob = await drawSlipImage(model);
-    downloadBlob(blob, buildExportFileName(ExportExt.Png, new Date()));
-    trackExport(AnalyticsEvent.DownloadImage, true);
-    showToast(EXPORT_MESSAGES.imageDone);
-  } catch {
-    trackExport(AnalyticsEvent.DownloadImage, false);
-    showToast(EXPORT_MESSAGES.imageFailed);
-  }
-};
-
-const onExportCsvClick = () => {
-  try {
-    const csv = buildCsv({
-      rows: resultRows.value,
-      totalAmount: resultState.value.totalAmount,
-      denominations: activeDenominations.value,
-      // Mode the calculation used (編號 vs 姓名 header)
-      includesNames: resultState.value.includesNames,
-    });
-    downloadBlob(createCsvBlob(csv), buildExportFileName(ExportExt.Csv, new Date()));
-    trackExport(AnalyticsEvent.ExportCsv, true);
-    showToast(EXPORT_MESSAGES.csvDone);
-  } catch {
-    trackExport(AnalyticsEvent.ExportCsv, false);
-    showToast(EXPORT_MESSAGES.csvFailed);
-  }
-};
-
 const onCurrentSettingsClick = async () => {
   await navigateTo({ name: RouteName.Settings });
 };
@@ -860,63 +595,8 @@ const onLoginSaveClick = async () => {
   @apply rounded-full text-ink bg-surface ml-2 p-2;
 }
 
-
-.instruction {
-  @apply flex flex-col gap-4 text-helper;
-}
-
-.instruction ul {
-  @apply list-decimal list-outside pl-4 text-accent;
-}
-.instruction .instruction--tips ul {
-  list-style-type: 'ฅ ';
-}
-.instruction ul li p {
-  @apply text-ink;
-}
-
-.result-placeholder {
-  @apply p-6 min-h-70;
-}
-.result-placeholder__text {
-  @apply text-lg;
-}
-
 .result-area {
   @apply flex flex-col gap-4;
-}
-
-.over-card__content {
-  @apply flex flex-col gap-4;
-}
-.over-card__art {
-  @apply min-h-30;
-}
-.over-card__text {
-  @apply flex flex-col gap-2 text-center;
-}
-.over-card__title {
-  @apply text-h2 text-ink;
-}
-.over-card__desc {
-  @apply text-body-sm text-ink-2;
-}
-/* DS: soft row, radius 20, padding 14px 16px → 12px 16px */
-.over-card__split {
-  @apply grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-lg bg-soft px-4 py-3;
-}
-.over-card__split-item {
-  @apply flex flex-col items-center;
-}
-.over-card__split-label {
-  @apply text-xs text-muted;
-}
-/* DS 24px */
-.over-card__split-value {
-  @apply text-2xl text-ink;
-}
-.over-card__split-plus {
-  @apply text-lg text-faint;
 }
 
 /* DS: hero-chip row, radius 18 → 16, padding 8px 8px 8px 14px → 8px 8px 8px 16px */
@@ -935,50 +615,6 @@ const onLoginSaveClick = async () => {
 }
 .result-area__actions {
   @apply grid grid-cols-3 gap-2;
-}
-.result-area__denoms {
-  @apply flex flex-col gap-3;
-}
-.result-area__section-title {
-  @apply px-2 pt-1 text-btn text-ink;
-}
-.result-area__bills {
-  @apply grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-3;
-}
-.result-area__coins {
-  @apply grid grid-cols-5 gap-2 max-w-110;
-}
-.result-area__unit {
-  @apply px-2 text-xs text-muted;
-}
-.result-area__details {
-  @apply overflow-hidden rounded-3xl bg-surface;
-}
-/* DS height 54 → 16px text (24px line) + 16px ×2 = 56 */
-.result-area__details-toggle {
-  @apply flex w-full items-center justify-between px-5 py-4 text-btn leading-6 text-ink cursor-pointer;
-}
-.result-area__details-hint {
-  @apply text-body-sm text-muted;
-}
-.summary-card__rows {
-  @apply flex flex-col gap-2 px-3 pb-3;
-}
-/* DS row: soft bg, radius 16, padding 10px 14px → 12px 16px */
-.summary-card__row {
-  @apply flex flex-col gap-1 rounded-row bg-soft px-4 py-3;
-}
-.summary-card__row-head {
-  @apply flex items-baseline justify-between;
-}
-.summary-card__row-head span:first-child {
-  @apply text-body-sm font-medium;
-}
-.summary-card__row-head span:last-child {
-  @apply text-btn;
-}
-.summary-card__row-body {
-  @apply flex flex-wrap gap-2 pt-1;
 }
 
 .money-snap {

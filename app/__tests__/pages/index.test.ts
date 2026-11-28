@@ -12,6 +12,10 @@ import AppDenomBadge from '../../components/app/DenomBadge/DenomBadge.vue';
 import AppDenomCell from '../../components/app/DenomCell/DenomCell.vue';
 import AppActionTile from '../../components/app/ActionTile/ActionTile.vue';
 import AppDialog from '../../components/app/Dialog/Dialog.vue';
+import AppEmptyState from '../../components/app/EmptyState/EmptyState.vue';
+import HomeInstructions from '../../components/home/HomeInstructions.vue';
+import HomeOverCard from '../../components/home/HomeOverCard.vue';
+import HomeResultBreakdown from '../../components/home/HomeResultBreakdown.vue';
 import AppCheckbox from '../../components/app/Checkbox/Checkbox.vue';
 import AppPreferencesForm from '../../components/app/PreferencesForm/PreferencesForm.vue';
 import IndexPage from '../../pages/index.vue';
@@ -68,6 +72,10 @@ const mountPage = () =>
         AppDenomCell,
         AppActionTile,
         AppDialog,
+        AppEmptyState,
+        HomeInstructions,
+        HomeOverCard,
+        HomeResultBreakdown,
         AppCheckbox,
         AppPreferencesForm,
         AppCatEarCard: AppCatEarCardStub,
@@ -1093,6 +1101,7 @@ describe('pages/index.vue', () => {
               AppButton, AppTextarea, AppChip, AppAlert, AppIllustrationSlot, AppIconButton,
               AppTotalCard, AppDenomBadge, AppDenomCell, AppActionTile, AppDialog, AppCheckbox,
               AppPreferencesForm, AppCatEarCard: AppCatEarCardStub,
+              AppEmptyState, HomeInstructions, HomeOverCard, HomeResultBreakdown,
             },
           },
         });
