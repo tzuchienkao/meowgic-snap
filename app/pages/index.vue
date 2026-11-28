@@ -1,6 +1,5 @@
 <template>
   <div class="page-index">
-    <div class="page-index__header" />
     <!-- DS: one column under 900px, two columns from 900px (desktop: breakpoint) -->
     <div class="page-index__body grid grid-cols-1 gap-6 desktop:grid-cols-2">
       <!-- Input Card -->

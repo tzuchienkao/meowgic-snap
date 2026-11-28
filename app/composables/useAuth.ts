@@ -137,11 +137,6 @@ export const useAuth = () => {
 
   // 初始化認證
   const initAuth = async () => {
-    // user.value = {
-    //   id: '1',
-    //   email: 'demo@meowgic.com',
-    //   name: '喵奴才'
-    // };
     // Server: from the request's session cookie (plugins/02.auth.ts) · browser: re-check after hydration
     if (supabase) {
       await verifySession();
